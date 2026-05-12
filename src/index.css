@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #8a5dff;
+  --color-primary-dark: #7040cc;
+  --color-accent: #f7c948;
+  --color-bg: #f8f6ff;
+  --font-sans: "Inter", "Nunito", sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
