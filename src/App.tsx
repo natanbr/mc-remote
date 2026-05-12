@@ -66,10 +66,6 @@ function App() {
         setStatus('offline');
       }
     });
-
-    ch.on('broadcast', { event: 'heartbeat' }, () => {
-      showFeedback('💓 Heartbeat received from Desktop!');
-    });
   };
 
   const dispatchAction = useCallback((action: any) => {
