@@ -58,6 +58,7 @@ function App() {
     });
     
     ch.subscribe((state, err) => {
+      if (err) console.error(err);
       if (state === 'SUBSCRIBED') {
         setStatus('connected');
         setChannel(ch);
