@@ -51,9 +51,13 @@ function App() {
     if (!supabase) return;
 
     setStatus('connecting');
-    const ch = supabase.channel(`remote-control:${room}`);
+    const ch = supabase.channel(`remote-control:${room}`, {
+      config: {
+        broadcast: { ack: true }
+      }
+    });
     
-    ch.subscribe((state) => {
+    ch.subscribe((state, err) => {
       if (state === 'SUBSCRIBED') {
         setStatus('connected');
         setChannel(ch);
