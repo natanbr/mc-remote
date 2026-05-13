@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Plus, Minus, Sun, Moon, RotateCcw, Clock, Wand2, PartyPopper, Check, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Minus, Sun, Moon, RotateCcw, Clock, Wand2, PartyPopper, Check, AlertCircle, RefreshCw, ThumbsUp, VolumeX, Frown, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Initialize Supabase only if env vars are present
@@ -18,6 +18,7 @@ function App() {
   const [channel, setChannel] = useState<any>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // 1. Extract from URL params
@@ -68,29 +69,41 @@ function App() {
     });
   };
 
-  const dispatchAction = useCallback((action: any) => {
+  const dispatchAction = useCallback((action: any, actionId: string) => {
     if (!channel || !secretKey) return;
+
+    // Prevent double-clicking same action while loading
+    if (loadingActions.has(actionId)) return;
 
     // Vibrate phone for feedback
     if (window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate(50);
+      window.navigator.vibrate([40]);
     }
+
+    setLoadingActions(prev => new Set(prev).add(actionId));
 
     channel.send({
       type: 'broadcast',
       event: 'action',
       payload: {
         key: secretKey,
+        msgId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, // Double-dispatch protection
+        timestamp: Date.now(),
         action,
       },
     }).then((res: any) => {
+        setLoadingActions(prev => {
+            const next = new Set(prev);
+            next.delete(actionId);
+            return next;
+        });
         if (res === 'ok') {
-            showFeedback('Action sent!');
+            showFeedback('Sent! ✨');
         } else {
-            showFeedback('Failed to send!');
+            showFeedback('Error! ❌');
         }
     });
-  }, [channel, secretKey]);
+  }, [channel, secretKey, loadingActions]);
 
   const showFeedback = (msg: string) => {
       setActionFeedback(msg);
@@ -128,7 +141,7 @@ function App() {
   return (
     <div className="min-h-screen bg-bg pb-12">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur border-b border-slate-200/50 sticky top-0 z-10 px-5 py-4 flex items-center justify-between">
+      <header className="bg-white/80 backdrop-blur border-b border-slate-200/50 sticky top-0 z-20 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
             <Wand2 className="w-4 h-4 text-primary" />
@@ -137,13 +150,13 @@ function App() {
         </div>
         
         <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400">
+            <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">
                 {status === 'connected' ? '🟢 Online' : status === 'connecting' ? '🟡 Connecting' : '🔴 Offline'}
             </span>
             {status !== 'connected' && (
                 <button 
                     onClick={() => connectRealtime(roomId)}
-                    className="p-1.5 bg-slate-100 rounded-lg"
+                    className="p-1.5 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors"
                 >
                     <RefreshCw className="w-3 h-3 text-slate-500" />
                 </button>
@@ -152,30 +165,96 @@ function App() {
       </header>
 
       {/* Main Controls */}
-      <main className="p-5 flex flex-col gap-6">
+      <main className="p-5 flex flex-col gap-8">
         
-        {/* Game Tokens */}
+        {/* Wealth & Bank */}
         <section>
-          <h2 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-widest px-1">Game Tokens</h2>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Bank Tokens (Wealth)</h2>
+            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <ControlButton 
+              icon={<Plus className="w-5 h-5 text-indigo-600" />} 
+              label="+1" 
+              loading={loadingActions.has('bank-add-1')}
+              onClick={() => dispatchAction({ type: 'ADD_TOKENS', amount: 1, source: 'manual' }, 'bank-add-1')} 
+              bg="bg-indigo-50"
+              border="border-indigo-100"
+            />
+            <ControlButton 
+              icon={<Plus className="w-5 h-5 text-indigo-700" />} 
+              label="+5" 
+              loading={loadingActions.has('bank-add-5')}
+              onClick={() => dispatchAction({ type: 'ADD_TOKENS', amount: 5, source: 'manual' }, 'bank-add-5')} 
+              bg="bg-indigo-100/50"
+              border="border-indigo-200"
+            />
+            <ControlButton 
+              icon={<Minus className="w-5 h-5 text-slate-500" />} 
+              label="-1" 
+              loading={loadingActions.has('bank-rem-1')}
+              onClick={() => dispatchAction({ type: 'REMOVE_TOKEN' }, 'bank-rem-1')} 
+              bg="bg-slate-100"
+              border="border-slate-200"
+            />
+          </div>
+        </section>
+
+        {/* Responsibilities */}
+        <section>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Responsibilities</h2>
+            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <ControlButton 
-              icon={<Plus className="w-5 h-5 text-emerald-600" />} 
-              label="Add Token" 
-              onClick={() => dispatchAction({ type: 'GRANT_GAME_TOKEN', force: true })} 
+              icon={<RotateCcw className="w-5 h-5 text-emerald-600" />} 
+              label="Recycling +1" 
+              loading={loadingActions.has('resp-recycling')}
+              onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'recycling' }, 'resp-recycling')} 
               bg="bg-emerald-50"
-              border="border-emerald-200"
+              border="border-emerald-100"
+            />
+             <ControlButton 
+              icon={<RotateCcw className="w-5 h-5 text-amber-600" />} 
+              label="Activity +1" 
+              loading={loadingActions.has('resp-activity')}
+              onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'activity' }, 'resp-activity')} 
+              bg="bg-amber-50"
+              border="border-amber-100"
+            />
+          </div>
+        </section>
+
+        {/* Game Tokens */}
+        <section>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Game Tokens (Max 5)</h2>
+            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ControlButton 
+              icon={<Plus className="w-5 h-5 text-teal-600" />} 
+              label="Grant Token" 
+              loading={loadingActions.has('game-grant')}
+              onClick={() => dispatchAction({ type: 'GRANT_GAME_TOKEN', force: true }, 'game-grant')} 
+              bg="bg-teal-50"
+              border="border-teal-100"
             />
             <ControlButton 
               icon={<Minus className="w-5 h-5 text-rose-600" />} 
-              label="Remove Token" 
-              onClick={() => dispatchAction({ type: 'CONSUME_GAME_TOKEN' })} 
+              label="Use Token" 
+              loading={loadingActions.has('game-use')}
+              onClick={() => dispatchAction({ type: 'CONSUME_GAME_TOKEN' }, 'game-use')} 
               bg="bg-rose-50"
-              border="border-rose-200"
+              border="border-rose-100"
             />
              <ControlButton 
-              icon={<RotateCcw className="w-5 h-5 text-slate-600" />} 
-              label="Reset All" 
-              onClick={() => dispatchAction({ type: 'RESET_GAME_TOKENS' })} 
+              icon={<RotateCcw className="w-4 h-4 text-slate-400" />} 
+              label="Reset Tokens" 
+              loading={loadingActions.has('game-reset')}
+              onClick={() => dispatchAction({ type: 'RESET_GAME_TOKENS' }, 'game-reset')} 
               bg="bg-white"
               border="border-slate-200"
               fullWidth
@@ -185,65 +264,109 @@ function App() {
 
         {/* Missions */}
         <section>
-          <h2 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-widest px-1">Missions</h2>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Mission Control</h2>
+            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+             <ControlButton 
+              icon={<Frown className="w-5 h-5 text-red-600" />} 
+              label="AM -1 Whining" 
+              loading={loadingActions.has('whining-morning')}
+              onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: 'morning', lockedFromUI: true }, 'whining-morning')} 
+              bg="bg-red-50"
+              border="border-red-100"
+            />
+            <ControlButton 
+              icon={<Frown className="w-5 h-5 text-red-600" />} 
+              label="PM -1 Whining" 
+              loading={loadingActions.has('whining-evening')}
+              onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: 'evening', lockedFromUI: true }, 'whining-evening')} 
+              bg="bg-red-50"
+              border="border-red-100"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <ControlButton 
               icon={<Sun className="w-5 h-5 text-amber-600" />} 
-              label="Trigger Morning" 
-              onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'morning' })} 
+              label="Start Morning" 
+              loading={loadingActions.has('mission-morning')}
+              onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'morning' }, 'mission-morning')} 
               bg="bg-amber-50"
-              border="border-amber-200"
+              border="border-amber-100"
             />
             <ControlButton 
               icon={<Moon className="w-5 h-5 text-indigo-600" />} 
-              label="Trigger Evening" 
-              onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'evening' })} 
+              label="Start Evening" 
+              loading={loadingActions.has('mission-evening')}
+              onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'evening' }, 'mission-evening')} 
               bg="bg-indigo-50"
-              border="border-indigo-200"
+              border="border-indigo-100"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
              <ControlButton 
               icon={<Clock className="w-5 h-5 text-blue-600" />} 
               label="+10 Mins" 
-              onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 10 })} 
+              loading={loadingActions.has('mission-plus')}
+              onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 10 }, 'mission-plus')} 
               bg="bg-blue-50"
-              border="border-blue-200"
+              border="border-blue-100"
             />
             <ControlButton 
               icon={<Clock className="w-5 h-5 text-orange-600" />} 
               label="-10 Mins" 
-              onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: -10 })} 
+              loading={loadingActions.has('mission-minus')}
+              onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: -10 }, 'mission-minus')} 
               bg="bg-orange-50"
-              border="border-orange-200"
+              border="border-orange-100"
             />
           </div>
         </section>
 
         {/* Fun */}
         <section>
-          <h2 className="text-xs font-black uppercase text-slate-400 mb-3 tracking-widest px-1">Fun & Special</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Special Effects</h2>
+            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <ControlButton 
-              icon={<Wand2 className="w-5 h-5 text-fuchsia-600" />} 
-              label="Fireworks" 
-              onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'fireworks' })} 
+              icon={<ThumbsUp className="w-5 h-5 text-emerald-600" />} 
+              label="Good Job!" 
+              loading={loadingActions.has('fx-good-job')}
+              onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'good-job' }, 'fx-good-job')} 
+              bg="bg-emerald-50"
+              border="border-emerald-100"
+            />
+            <ControlButton 
+              icon={<VolumeX className="w-5 h-5 text-orange-600" />} 
+              label="Too Loud" 
+              loading={loadingActions.has('fx-too-loud')}
+              onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'too-loud' }, 'fx-too-loud')} 
+              bg="bg-orange-50"
+              border="border-orange-100"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-3 mb-3">
+            <ControlButton 
+              icon={<Sparkles className="w-5 h-5 text-fuchsia-600" />} 
+              label="Party Time (Confetti + Fireworks)" 
+              loading={loadingActions.has('fx-party')}
+              onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'confetti-fireworks' }, 'fx-party')} 
               bg="bg-fuchsia-50"
-              border="border-fuchsia-200"
+              border="border-fuchsia-100"
+              fullWidth
             />
-            <ControlButton 
-              icon={<PartyPopper className="w-5 h-5 text-teal-600" />} 
-              label="Confetti" 
-              onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'confetti' })} 
-              bg="bg-teal-50"
-              border="border-teal-200"
-            />
+          </div>
+          <div className="grid grid-cols-1 gap-3">
             <ControlButton 
               icon={<AlertCircle className="w-5 h-5 text-red-600" />} 
-              label="Cheat Trap" 
-              onClick={() => dispatchAction({ type: 'CHEAT_ATTEMPT' })} 
+              label="No! ☝️ (Cheat Trap)" 
+              loading={loadingActions.has('fx-cheat')}
+              onClick={() => dispatchAction({ type: 'CHEAT_ATTEMPT' }, 'fx-cheat')} 
               bg="bg-red-50"
-              border="border-red-200"
+              border="border-red-100"
               fullWidth
             />
           </div>
@@ -257,9 +380,11 @@ function App() {
                   initial={{ opacity: 0, y: 50, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                  className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-4 py-2 rounded-full font-bold text-sm shadow-xl flex items-center gap-2"
+                  className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full font-black text-sm shadow-2xl flex items-center gap-3 z-50 border border-slate-700/50"
               >
-                  <Check className="w-4 h-4 text-emerald-400" />
+                  <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
                   {actionFeedback}
               </motion.div>
           )}
@@ -268,22 +393,27 @@ function App() {
   );
 }
 
-function ControlButton({ icon, label, onClick, bg = "bg-white", border = "border-slate-200", fullWidth = false }: any) {
+function ControlButton({ icon, label, onClick, loading, bg = "bg-white", border = "border-slate-200", fullWidth = false }: any) {
   return (
     <motion.button
-      whileTap={{ scale: 0.95 }}
+      whileTap={{ scale: 0.94, y: 2 }}
       onClick={onClick}
+      disabled={loading}
       className={`
-        ${bg} ${border} border-[1.5px] rounded-xl p-4
-        flex flex-col items-center justify-center gap-3
-        shadow-sm
-        ${fullWidth ? 'col-span-2 flex-row' : ''}
+        ${bg} ${border} border-[1.5px] rounded-2xl p-4
+        flex flex-col items-center justify-center gap-2
+        shadow-sm active:shadow-inner transition-all
+        ${fullWidth ? 'col-span-full flex-row' : ''}
+        ${loading ? 'opacity-70 grayscale-[0.5]' : 'opacity-100'}
       `}
     >
-      <div className="bg-white/50 p-2 rounded-full">
-        {icon}
+      <div className={`
+        ${loading ? 'animate-spin' : ''}
+        p-2 rounded-full bg-white/60 shadow-sm
+      `}>
+        {loading ? <RefreshCw className="w-5 h-5 text-slate-400" /> : icon}
       </div>
-      <span className="font-bold text-slate-700 text-sm">{label}</span>
+      <span className="font-black text-slate-700 text-[12px] uppercase tracking-tight">{label}</span>
     </motion.button>
   );
 }
