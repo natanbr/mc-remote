@@ -1,8 +1,4 @@
-import { 
-  Plus, Minus, Sun, Moon, RotateCcw, Clock, Wand2, Check, 
-  AlertCircle, RefreshCw, ThumbsUp, VolumeX, Frown, Sparkles, 
-  Play, Square, Trash2, Ban
-} from 'lucide-react';
+import { Wand2, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRemoteControl } from './hooks/useRemoteControl';
 import { ControlButton } from './components/ControlButton';
