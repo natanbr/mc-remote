@@ -14,9 +14,13 @@ export type ActionType =
   | 'RESET_GAME_TOKENS'
   | 'SET_ACTIVE_MISSION'
   | 'ADJUST_MISSION_END'
+  | 'RESET_MISSION'
+  | 'CANCEL_MISSION'
   | 'TOGGLE_WHINING'
   | 'TRIGGER_ANIMATION'
-  | 'CHEAT_ATTEMPT';
+  | 'CHEAT_ATTEMPT'
+  | 'ADD_RESPONSIBILITY_POINT'
+  | 'RESET_RESPONSIBILITY';
 
 export interface RemoteAction {
   type: ActionType;
