@@ -32,7 +32,7 @@ export default function App() {
         <Section title="Bank Tokens">
           <div className="grid grid-cols-4 gap-3">
             <ControlButton 
-              icon={<Plus className="w-5 h-5 text-indigo-600" />} 
+              icon={<span className="text-xl">⭐</span>} 
               label="+1" 
               loading={loadingActions.has('bank-add-1')}
               onClick={() => dispatchAction({ type: 'ADD_TOKENS', amount: 1, source: 'manual' }, 'bank-add-1')} 
@@ -40,7 +40,7 @@ export default function App() {
               border="border-indigo-100"
             />
             <ControlButton 
-              icon={<Plus className="w-5 h-5 text-indigo-700" />} 
+              icon={<span className="text-xl">⭐</span>} 
               label="+5" 
               loading={loadingActions.has('bank-add-5')}
               onClick={() => dispatchAction({ type: 'ADD_TOKENS', amount: 5, source: 'manual' }, 'bank-add-5')} 
@@ -48,7 +48,7 @@ export default function App() {
               border="border-indigo-200"
             />
             <ControlButton 
-              icon={<Plus className="w-5 h-5 text-indigo-800" />} 
+              icon={<span className="text-xl">⭐</span>} 
               label="+10" 
               loading={loadingActions.has('bank-add-10')}
               onClick={() => dispatchAction({ type: 'ADD_TOKENS', amount: 10, source: 'manual' }, 'bank-add-10')} 
@@ -56,7 +56,7 @@ export default function App() {
               border="border-indigo-300"
             />
             <ControlButton 
-              icon={<Minus className="w-5 h-5 text-slate-500" />} 
+              icon={<span className="text-xl">❌</span>} 
               label="-1" 
               loading={loadingActions.has('bank-rem-1')}
               onClick={() => dispatchAction({ type: 'REMOVE_TOKEN' }, 'bank-rem-1')} 
@@ -70,12 +70,12 @@ export default function App() {
         <Section title="Responsibilities & Game Tokens">
           <div className="grid grid-cols-4 gap-x-3 gap-y-2">
             {/* Labels */}
-            <div className="col-span-2 text-[10px] font-black uppercase text-slate-400 tracking-tight pl-1">Recycling</div>
-            <div className="col-span-2 text-[10px] font-black uppercase text-slate-400 tracking-tight pl-1">Game Tokens</div>
+            <div className="col-span-2 text-[10px] font-black uppercase text-slate-400 tracking-tight pl-1">♻️ Recycling</div>
+            <div className="col-span-2 text-[10px] font-black uppercase text-slate-400 tracking-tight pl-1">🎮 Game Tokens</div>
             
             {/* Recycling Buttons */}
             <ControlButton 
-              icon={<Plus className="w-4 h-4 text-emerald-600" />} 
+              icon={<span className="text-xl">➕</span>} 
               label="+" 
               loading={loadingActions.has('resp-recycling-plus')}
               onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'recycling', amount: 1 }, 'resp-recycling-plus')} 
@@ -83,7 +83,7 @@ export default function App() {
               border="border-emerald-100"
             />
             <ControlButton 
-              icon={<Minus className="w-4 h-4 text-emerald-600" />} 
+              icon={<span className="text-xl">➖</span>} 
               label="-" 
               loading={loadingActions.has('resp-recycling-minus')}
               onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'recycling', amount: -1 }, 'resp-recycling-minus')} 
@@ -93,7 +93,7 @@ export default function App() {
 
             {/* Game Token Buttons */}
             <ControlButton 
-              icon={<Plus className="w-4 h-4 text-teal-600" />} 
+              icon={<span className="text-xl">➕</span>} 
               label="+" 
               loading={loadingActions.has('game-grant')}
               onClick={() => dispatchAction({ type: 'GRANT_GAME_TOKEN', force: true }, 'game-grant')} 
@@ -101,7 +101,7 @@ export default function App() {
               border="border-teal-100"
             />
             <ControlButton 
-              icon={<Minus className="w-4 h-4 text-teal-600" />} 
+              icon={<span className="text-xl">➖</span>} 
               label="-" 
               loading={loadingActions.has('game-use')}
               onClick={() => dispatchAction({ type: 'CONSUME_GAME_TOKEN' }, 'game-use')} 
@@ -117,16 +117,16 @@ export default function App() {
             
             {/* Morning Labels */}
             <div className="col-span-2 flex items-center gap-2 text-[11px] font-black uppercase text-amber-500 tracking-tight pl-1">
-              <Sun className="w-3 h-3" /> Morning
+              ☀️ Morning
             </div>
             {/* Evening Labels */}
             <div className="col-span-2 flex items-center gap-2 text-[11px] font-black uppercase text-indigo-500 tracking-tight pl-1">
-              <Moon className="w-3 h-3" /> Evening
+              🌙 Evening
             </div>
 
             {/* Morning Start/Stop */}
             <ControlButton 
-              icon={<Play className="w-4 h-4 text-amber-600" />} 
+              icon={<span className="text-xl">▶️</span>} 
               label="Start" 
               loading={loadingActions.has('mission-m-start')}
               onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'morning' }, 'mission-m-start')} 
@@ -134,7 +134,7 @@ export default function App() {
               border="border-amber-100"
             />
             <ControlButton 
-              icon={<Square className="w-4 h-4 text-amber-600" />} 
+              icon={<span className="text-xl">⏹️</span>} 
               label="Stop" 
               loading={loadingActions.has('mission-m-stop')}
               onClick={() => dispatchAction({ type: 'CANCEL_MISSION', missionPhase: 'morning' }, 'mission-m-stop')} 
@@ -144,7 +144,7 @@ export default function App() {
 
             {/* Evening Start/Stop */}
             <ControlButton 
-              icon={<Play className="w-4 h-4 text-indigo-600" />} 
+              icon={<span className="text-xl">▶️</span>} 
               label="Start" 
               loading={loadingActions.has('mission-e-start')}
               onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'evening' }, 'mission-e-start')} 
@@ -152,7 +152,7 @@ export default function App() {
               border="border-indigo-100"
             />
             <ControlButton 
-              icon={<Square className="w-4 h-4 text-indigo-600" />} 
+              icon={<span className="text-xl">⏹️</span>} 
               label="Stop" 
               loading={loadingActions.has('mission-e-stop')}
               onClick={() => dispatchAction({ type: 'CANCEL_MISSION', missionPhase: 'evening' }, 'mission-e-stop')} 
@@ -160,67 +160,67 @@ export default function App() {
               border="border-indigo-100"
             />
 
-            {/* Morning Time Adjustments (3 buttons) */}
+            {/* Morning Time Adjustments */}
             <div className="col-span-2 grid grid-cols-3 gap-2">
               <ControlButton 
-                icon={<Clock className="w-3 h-3 text-amber-600" />} 
-                label="+1" 
+                icon={<span className="text-sm">➕1</span>} 
+                label="Min" 
                 loading={loadingActions.has('m-time-1')}
                 onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 1 }, 'm-time-1')} 
                 bg="bg-amber-50/50"
               />
               <ControlButton 
-                icon={<Clock className="w-3 h-3 text-amber-600" />} 
-                label="+5" 
+                icon={<span className="text-sm">➕5</span>} 
+                label="Min" 
                 loading={loadingActions.has('m-time-5')}
                 onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 5 }, 'm-time-5')} 
                 bg="bg-amber-50/50"
               />
               <ControlButton 
-                icon={<Clock className="w-3 h-3 text-amber-600" />} 
-                label="+10" 
+                icon={<span className="text-sm">➕10</span>} 
+                label="Min" 
                 loading={loadingActions.has('m-time-10')}
                 onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 10 }, 'm-time-10')} 
                 bg="bg-amber-50/50"
               />
             </div>
 
-            {/* Evening Time Adjustments (3 buttons) */}
+            {/* Evening Time Adjustments */}
             <div className="col-span-2 grid grid-cols-3 gap-2">
               <ControlButton 
-                icon={<Clock className="w-3 h-3 text-indigo-600" />} 
-                label="-1" 
+                icon={<span className="text-sm">➖1</span>} 
+                label="Min" 
                 loading={loadingActions.has('e-time-1')}
                 onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'evening', deltaMinutes: -1 }, 'e-time-1')} 
                 bg="bg-indigo-50/50"
               />
               <ControlButton 
-                icon={<Clock className="w-3 h-3 text-indigo-600" />} 
-                label="-5" 
+                icon={<span className="text-sm">➖5</span>} 
+                label="Min" 
                 loading={loadingActions.has('e-time-5')}
                 onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'evening', deltaMinutes: -5 }, 'e-time-5')} 
                 bg="bg-indigo-50/50"
               />
               <ControlButton 
-                icon={<Clock className="w-3 h-3 text-indigo-600" />} 
-                label="-10" 
+                icon={<span className="text-sm">➖10</span>} 
+                label="Min" 
                 loading={loadingActions.has('e-time-10')}
                 onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'evening', deltaMinutes: -10 }, 'e-time-10')} 
                 bg="bg-indigo-50/50"
               />
             </div>
 
-            {/* Morning Footer (Reset/Whining) */}
+            {/* Morning Footer */}
             <div className="col-span-2 grid grid-cols-2 gap-2">
               <ControlButton 
-                icon={<RotateCcw className="w-4 h-4 text-slate-400" />} 
+                icon={<span className="text-xl">🔄</span>} 
                 label="Reset" 
                 loading={loadingActions.has('m-reset')}
                 onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: 'morning' }, 'm-reset')} 
                 bg="bg-slate-50"
               />
               <ControlButton 
-                icon={<Frown className="w-4 h-4 text-red-500" />} 
+                icon={<span className="text-xl">😱</span>} 
                 label="Whining" 
                 loading={loadingActions.has('m-whine')}
                 onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: 'morning', lockedFromUI: true }, 'm-whine')} 
@@ -228,17 +228,17 @@ export default function App() {
               />
             </div>
 
-            {/* Evening Footer (Reset/Whining) */}
+            {/* Evening Footer */}
             <div className="col-span-2 grid grid-cols-2 gap-2">
               <ControlButton 
-                icon={<RotateCcw className="w-4 h-4 text-slate-400" />} 
+                icon={<span className="text-xl">🔄</span>} 
                 label="Reset" 
                 loading={loadingActions.has('e-reset')}
                 onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: 'evening' }, 'e-reset')} 
                 bg="bg-slate-50"
               />
               <ControlButton 
-                icon={<Frown className="w-4 h-4 text-red-500" />} 
+                icon={<span className="text-xl">😱</span>} 
                 label="Whining" 
                 loading={loadingActions.has('e-whine')}
                 onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: 'evening', lockedFromUI: true }, 'e-whine')} 
@@ -258,7 +258,7 @@ export default function App() {
 
             {/* Positive */}
             <ControlButton 
-              icon={<ThumbsUp className="w-4 h-4 text-emerald-600" />} 
+              icon={<span className="text-xl">😊👍</span>} 
               label="Good Job" 
               loading={loadingActions.has('fx-good-job')}
               onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'good-job' }, 'fx-good-job')} 
@@ -266,7 +266,7 @@ export default function App() {
               border="border-emerald-100"
             />
             <ControlButton 
-              icon={<Sparkles className="w-4 h-4 text-emerald-600" />} 
+              icon={<span className="text-xl">🎉</span>} 
               label="Confetti" 
               loading={loadingActions.has('fx-confetti')}
               onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'confetti' }, 'fx-confetti')} 
@@ -276,7 +276,7 @@ export default function App() {
 
             {/* Negative */}
             <ControlButton 
-              icon={<VolumeX className="w-4 h-4 text-red-600" />} 
+              icon={<span className="text-xl">😱</span>} 
               label="Too Loud" 
               loading={loadingActions.has('fx-too-loud')}
               onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'too-loud' }, 'fx-too-loud')} 
@@ -284,7 +284,7 @@ export default function App() {
               border="border-red-100"
             />
             <ControlButton 
-              icon={<Ban className="w-4 h-4 text-red-600" />} 
+              icon={<span className="text-xl">☝️</span>} 
               label="No" 
               loading={loadingActions.has('fx-cheat')}
               onClick={() => dispatchAction({ type: 'CHEAT_ATTEMPT' }, 'fx-cheat')} 
@@ -306,11 +306,11 @@ function Header({ status, onReconnect }: { status: string; onReconnect: () => vo
     <header className="bg-white/80 backdrop-blur border-b border-slate-200/50 sticky top-0 z-20 px-5 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-          <Wand2 className="w-4 h-4 text-primary" />
+          <span className="text-sm">📱</span>
         </div>
         <div className="flex flex-col">
           <span className="font-black text-slate-800 tracking-wide uppercase text-sm leading-none">Remote</span>
-          <span className="text-[9px] text-slate-400 font-mono mt-0.5">v1.3.0</span>
+          <span className="text-[9px] text-slate-400 font-mono mt-0.5">v1.4.0</span>
         </div>
       </div>
       
