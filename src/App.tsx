@@ -217,6 +217,7 @@ function Header({ status, onReconnect }: { status: string; onReconnect: () => vo
           <Wand2 className="w-4 h-4 text-primary" />
         </div>
         <span className="font-black text-slate-800 tracking-wide uppercase text-sm">Remote</span>
+        <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-mono">v1.2.0-refactor</span>
       </div>
       
       <div className="flex items-center gap-2">
