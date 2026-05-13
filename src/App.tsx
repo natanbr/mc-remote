@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Plus, Minus, Sun, Moon, RotateCcw, Clock, Wand2, PartyPopper, Check, AlertCircle, RefreshCw, ThumbsUp, VolumeX, Frown, Sparkles } from 'lucide-react';
+import { Plus, Minus, Sun, Moon, RotateCcw, Clock, Wand2, Check, AlertCircle, RefreshCw, ThumbsUp, VolumeX, Frown, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Initialize Supabase only if env vars are present
