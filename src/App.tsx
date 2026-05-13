@@ -1,178 +1,29 @@
-import { useState, useEffect, useCallback } from 'react';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Plus, Minus, Sun, Moon, RotateCcw, Clock, Wand2, Check, AlertCircle, RefreshCw, ThumbsUp, VolumeX, Frown, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRemoteControl } from './hooks/useRemoteControl';
+import { ControlButton } from './components/ControlButton';
+import { Section } from './components/Section';
 
-// Initialize Supabase only if env vars are present
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export default function App() {
+  const { 
+    config, 
+    status, 
+    actionFeedback, 
+    loadingActions, 
+    dispatchAction, 
+    reconnect,
+    isConfigured 
+  } = useRemoteControl();
 
-let supabase: SupabaseClient | null = null;
-if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
-}
-
-function App() {
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [secretKey, setSecretKey] = useState<string | null>(null);
-  const [channel, setChannel] = useState<any>(null);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
-  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
-  const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    // 1. Extract from URL params
-    const params = new URLSearchParams(window.location.search);
-    const urlRoom = params.get('room');
-    const urlKey = params.get('key');
-
-    let finalRoom = urlRoom;
-    let finalKey = urlKey;
-
-    // 2. Save or retrieve from localStorage
-    if (urlRoom && urlKey) {
-      localStorage.setItem('mc_room', urlRoom);
-      localStorage.setItem('mc_key', urlKey);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-      finalRoom = localStorage.getItem('mc_room');
-      finalKey = localStorage.getItem('mc_key');
-    }
-
-    setRoomId(finalRoom);
-    setSecretKey(finalKey);
-
-    if (finalRoom && finalKey && supabase) {
-      connectRealtime(finalRoom);
-    }
-  }, []);
-
-  const connectRealtime = (room: string) => {
-    if (!supabase) return;
-
-    setStatus('connecting');
-    const ch = supabase.channel(`remote-control:${room}`, {
-      config: {
-        broadcast: { ack: true }
-      }
-    });
-    
-    ch.subscribe((state, err) => {
-      if (err) console.error(err);
-      if (state === 'SUBSCRIBED') {
-        setStatus('connected');
-        setChannel(ch);
-      } else {
-        setStatus('offline');
-      }
-    });
-  };
-
-  const dispatchAction = useCallback((action: any, actionId: string) => {
-    if (!channel || !secretKey) return;
-
-    // Prevent double-clicking same action while loading
-    if (loadingActions.has(actionId)) return;
-
-    // Vibrate phone for feedback
-    if (window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate([40]);
-    }
-
-    setLoadingActions(prev => new Set(prev).add(actionId));
-
-    channel.send({
-      type: 'broadcast',
-      event: 'action',
-      payload: {
-        key: secretKey,
-        msgId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, // Double-dispatch protection
-        timestamp: Date.now(),
-        action,
-      },
-    }).then((res: any) => {
-        setLoadingActions(prev => {
-            const next = new Set(prev);
-            next.delete(actionId);
-            return next;
-        });
-        if (res === 'ok') {
-            showFeedback('Sent! ✨');
-        } else {
-            showFeedback('Error! ❌');
-        }
-    });
-  }, [channel, secretKey, loadingActions]);
-
-  const showFeedback = (msg: string) => {
-      setActionFeedback(msg);
-      setTimeout(() => setActionFeedback(null), 1500);
-  };
-
-  // Missing config UI
-  if (!supabaseUrl || !supabaseKey) {
-    return (
-      <div className="min-h-screen bg-zinc-900 text-white flex flex-col items-center justify-center p-6 text-center">
-        <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
-        <h1 className="text-xl font-bold mb-2">Vercel Setup Required</h1>
-        <p className="text-zinc-400 text-sm">
-          You must set <code className="bg-zinc-800 px-1 rounded text-red-300">VITE_SUPABASE_URL</code> and <code className="bg-zinc-800 px-1 rounded text-red-300">VITE_SUPABASE_ANON_KEY</code> in your environment variables.
-        </p>
-      </div>
-    );
-  }
-
-  // Missing Pairing UI
-  if (!roomId || !secretKey) {
-    return (
-      <div className="min-h-screen bg-bg text-slate-800 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-20 h-20 bg-white shadow-xl rounded-2xl flex items-center justify-center mb-6">
-          <Wand2 className="w-10 h-10 text-primary" />
-        </div>
-        <h1 className="text-2xl font-black mb-3">Not Paired</h1>
-        <p className="text-slate-500 mb-8 max-w-xs">
-          Open the Settings panel in Mission Control and scan the Remote Control QR code.
-        </p>
-      </div>
-    );
-  }
+  if (!isConfigured) return <SetupRequiredScreen />;
+  if (!config) return <NotPairedScreen />;
 
   return (
     <div className="min-h-screen bg-bg pb-12">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur border-b border-slate-200/50 sticky top-0 z-20 px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Wand2 className="w-4 h-4 text-primary" />
-          </div>
-          <span className="font-black text-slate-800 tracking-wide uppercase text-sm">Remote</span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">
-                {status === 'connected' ? '🟢 Online' : status === 'connecting' ? '🟡 Connecting' : '🔴 Offline'}
-            </span>
-            {status !== 'connected' && (
-                <button 
-                    onClick={() => connectRealtime(roomId)}
-                    className="p-1.5 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors"
-                >
-                    <RefreshCw className="w-3 h-3 text-slate-500" />
-                </button>
-            )}
-        </div>
-      </header>
+      <Header status={status} onReconnect={reconnect} />
 
-      {/* Main Controls */}
       <main className="p-5 flex flex-col gap-8">
-        
-        {/* Wealth & Bank */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Bank Tokens (Wealth)</h2>
-            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
-          </div>
+        <Section title="Bank Tokens (Wealth)">
           <div className="grid grid-cols-3 gap-3">
             <ControlButton 
               icon={<Plus className="w-5 h-5 text-indigo-600" />} 
@@ -199,14 +50,9 @@ function App() {
               border="border-slate-200"
             />
           </div>
-        </section>
+        </Section>
 
-        {/* Responsibilities */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Responsibilities</h2>
-            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
-          </div>
+        <Section title="Responsibilities">
           <div className="grid grid-cols-2 gap-3">
             <ControlButton 
               icon={<RotateCcw className="w-5 h-5 text-emerald-600" />} 
@@ -216,7 +62,7 @@ function App() {
               bg="bg-emerald-50"
               border="border-emerald-100"
             />
-             <ControlButton 
+            <ControlButton 
               icon={<RotateCcw className="w-5 h-5 text-amber-600" />} 
               label="Activity +1" 
               loading={loadingActions.has('resp-activity')}
@@ -225,14 +71,9 @@ function App() {
               border="border-amber-100"
             />
           </div>
-        </section>
+        </Section>
 
-        {/* Game Tokens */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Game Tokens (Max 5)</h2>
-            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
-          </div>
+        <Section title="Game Tokens (Max 5)">
           <div className="grid grid-cols-2 gap-3">
             <ControlButton 
               icon={<Plus className="w-5 h-5 text-teal-600" />} 
@@ -250,7 +91,7 @@ function App() {
               bg="bg-rose-50"
               border="border-rose-100"
             />
-             <ControlButton 
+            <ControlButton 
               icon={<RotateCcw className="w-4 h-4 text-slate-400" />} 
               label="Reset Tokens" 
               loading={loadingActions.has('game-reset')}
@@ -260,16 +101,11 @@ function App() {
               fullWidth
             />
           </div>
-        </section>
+        </Section>
 
-        {/* Missions */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Mission Control</h2>
-            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
-          </div>
+        <Section title="Mission Control">
           <div className="grid grid-cols-2 gap-3 mb-3">
-             <ControlButton 
+            <ControlButton 
               icon={<Frown className="w-5 h-5 text-red-600" />} 
               label="AM -1 Whining" 
               loading={loadingActions.has('whining-morning')}
@@ -305,7 +141,7 @@ function App() {
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-             <ControlButton 
+            <ControlButton 
               icon={<Clock className="w-5 h-5 text-blue-600" />} 
               label="+10 Mins" 
               loading={loadingActions.has('mission-plus')}
@@ -322,14 +158,9 @@ function App() {
               border="border-orange-100"
             />
           </div>
-        </section>
+        </Section>
 
-        {/* Fun */}
-        <section>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Special Effects</h2>
-            <div className="h-[1px] flex-1 bg-slate-200/60 ml-4" />
-          </div>
+        <Section title="Special Effects">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <ControlButton 
               icon={<ThumbsUp className="w-5 h-5 text-emerald-600" />} 
@@ -351,7 +182,7 @@ function App() {
           <div className="grid grid-cols-1 gap-3 mb-3">
             <ControlButton 
               icon={<Sparkles className="w-5 h-5 text-fuchsia-600" />} 
-              label="Party Time (Confetti + Fireworks)" 
+              label="Party Time" 
               loading={loadingActions.has('fx-party')}
               onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'confetti-fireworks' }, 'fx-party')} 
               bg="bg-fuchsia-50"
@@ -362,7 +193,7 @@ function App() {
           <div className="grid grid-cols-1 gap-3">
             <ControlButton 
               icon={<AlertCircle className="w-5 h-5 text-red-600" />} 
-              label="No! ☝️ (Cheat Trap)" 
+              label="No! \u261D\ufe0f" 
               loading={loadingActions.has('fx-cheat')}
               onClick={() => dispatchAction({ type: 'CHEAT_ATTEMPT' }, 'fx-cheat')} 
               bg="bg-red-50"
@@ -370,52 +201,83 @@ function App() {
               fullWidth
             />
           </div>
-        </section>
+        </Section>
       </main>
 
-      {/* Floating Action Feedback */}
-      <AnimatePresence>
-          {actionFeedback && (
-              <motion.div
-                  initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                  className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full font-black text-sm shadow-2xl flex items-center gap-3 z-50 border border-slate-700/50"
-              >
-                  <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                  {actionFeedback}
-              </motion.div>
-          )}
-      </AnimatePresence>
+      <FeedbackOverlay message={actionFeedback} />
     </div>
   );
 }
 
-function ControlButton({ icon, label, onClick, loading, bg = "bg-white", border = "border-slate-200", fullWidth = false }: any) {
+function Header({ status, onReconnect }: { status: string; onReconnect: () => void }) {
   return (
-    <motion.button
-      whileTap={{ scale: 0.94, y: 2 }}
-      onClick={onClick}
-      disabled={loading}
-      className={`
-        ${bg} ${border} border-[1.5px] rounded-2xl p-4
-        flex flex-col items-center justify-center gap-2
-        shadow-sm active:shadow-inner transition-all
-        ${fullWidth ? 'col-span-full flex-row' : ''}
-        ${loading ? 'opacity-70 grayscale-[0.5]' : 'opacity-100'}
-      `}
-    >
-      <div className={`
-        ${loading ? 'animate-spin' : ''}
-        p-2 rounded-full bg-white/60 shadow-sm
-      `}>
-        {loading ? <RefreshCw className="w-5 h-5 text-slate-400" /> : icon}
+    <header className="bg-white/80 backdrop-blur border-b border-slate-200/50 sticky top-0 z-20 px-5 py-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <Wand2 className="w-4 h-4 text-primary" />
+        </div>
+        <span className="font-black text-slate-800 tracking-wide uppercase text-sm">Remote</span>
       </div>
-      <span className="font-black text-slate-700 text-[12px] uppercase tracking-tight">{label}</span>
-    </motion.button>
+      
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">
+          {status === 'connected' ? '🟢 Online' : status === 'connecting' ? '🟡 Connecting' : '🔴 Offline'}
+        </span>
+        {status !== 'connected' && (
+          <button 
+            onClick={onReconnect}
+            className="p-1.5 bg-slate-100 rounded-lg active:bg-slate-200 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3 text-slate-500" />
+          </button>
+        )}
+      </div>
+    </header>
   );
 }
 
-export default App;
+function FeedbackOverlay({ message }: { message: string | null }) {
+  return (
+    <AnimatePresence>
+      {message && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.9 }}
+          className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full font-black text-sm shadow-2xl flex items-center gap-3 z-50 border border-slate-700/50"
+        >
+          <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+            <Check className="w-3 h-3 text-white" />
+          </div>
+          {message}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function SetupRequiredScreen() {
+  return (
+    <div className="min-h-screen bg-zinc-900 text-white flex flex-col items-center justify-center p-6 text-center">
+      <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
+      <h1 className="text-xl font-bold mb-2">Vercel Setup Required</h1>
+      <p className="text-zinc-400 text-sm">
+        You must set <code className="bg-zinc-800 px-1 rounded text-red-300">VITE_SUPABASE_URL</code> and <code className="bg-zinc-800 px-1 rounded text-red-300">VITE_SUPABASE_ANON_KEY</code>.
+      </p>
+    </div>
+  );
+}
+
+function NotPairedScreen() {
+  return (
+    <div className="min-h-screen bg-bg text-slate-800 flex flex-col items-center justify-center p-6 text-center">
+      <div className="w-20 h-20 bg-white shadow-xl rounded-2xl flex items-center justify-center mb-6">
+        <Wand2 className="w-10 h-10 text-primary" />
+      </div>
+      <h1 className="text-2xl font-black mb-3">Not Paired</h1>
+      <p className="text-slate-500 mb-8 max-w-xs">
+        Open Settings in Mission Control and scan the Remote Control QR code.
+      </p>
+    </div>
+  );
+}
