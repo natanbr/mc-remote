@@ -24,7 +24,7 @@ export type ActionType =
 
 export interface RemoteAction {
   type: ActionType;
-  [key: string]: any; // Payload fields like amount, taskId, etc.
+  [key: string]: unknown; // Payload fields like amount, taskId, etc.
 }
 
 export interface BroadcastPayload {

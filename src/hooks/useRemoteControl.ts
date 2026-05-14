@@ -16,6 +16,9 @@ export function useRemoteControl() {
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  const [gameState, setGameState] = useState<Record<string, unknown> | null>(null);
+  const secretKeyRef = useRef<string | null>(null);
+
   const showFeedback = useCallback((msg: string) => {
     setActionFeedback(msg);
     setTimeout(() => setActionFeedback(null), 1500);
@@ -35,14 +38,35 @@ export function useRemoteControl() {
         broadcast: { ack: true }
       }
     });
+
+    ch.on('broadcast', { event: 'state-update' }, (payload: { payload?: { key: string; state: unknown } }) => {
+      const { key: receivedKey, state } = payload.payload || {};
+      if (receivedKey === secretKeyRef.current) {
+        setGameState(state);
+      }
+    });
     
-    ch.subscribe((state, err) => {
+    ch.subscribe((status, err) => {
       if (err) {
         console.error(err);
         setStatus('offline');
-      } else if (state === 'SUBSCRIBED') {
+      } else if (status === 'SUBSCRIBED') {
         setStatus('connected');
         channelRef.current = ch;
+        
+        // Request initial state sync from host
+        if (secretKeyRef.current) {
+          ch.send({
+            type: 'broadcast',
+            event: 'action',
+            payload: {
+              key: secretKeyRef.current,
+              msgId: `sync-${Date.now()}`,
+              timestamp: Date.now(),
+              action: { type: 'SYNC_REQUEST' }
+            }
+          });
+        }
       } else {
         setStatus('offline');
       }
@@ -68,6 +92,8 @@ export function useRemoteControl() {
     }
 
     if (finalRoom && finalKey) {
+      secretKeyRef.current = finalKey;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConfig({ roomId: finalRoom, secretKey: finalKey });
       connectRealtime(finalRoom);
     }
@@ -119,6 +145,7 @@ export function useRemoteControl() {
     status,
     actionFeedback,
     loadingActions,
+    gameState,
     dispatchAction,
     reconnect: () => config?.roomId && connectRealtime(config.roomId),
     isConfigured: !!(supabaseUrl && supabaseKey)

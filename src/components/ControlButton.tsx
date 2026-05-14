@@ -10,6 +10,7 @@ interface ControlButtonProps {
   bg?: string;
   border?: string;
   fullWidth?: boolean;
+  className?: string;
 }
 
 export function ControlButton({ 
@@ -19,7 +20,8 @@ export function ControlButton({
   loading, 
   bg = "bg-white", 
   border = "border-slate-200", 
-  fullWidth = false 
+  fullWidth = false,
+  className = ""
 }: ControlButtonProps) {
   return (
     <motion.button
@@ -32,6 +34,7 @@ export function ControlButton({
         shadow-sm active:shadow-inner transition-all
         ${fullWidth ? 'col-span-full flex-row' : ''}
         ${loading ? 'opacity-70 grayscale-[0.5]' : 'opacity-100'}
+        ${className}
       `}
     >
       <div className={`
