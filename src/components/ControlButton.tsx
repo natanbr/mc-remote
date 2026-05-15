@@ -40,7 +40,7 @@ export function ControlButton({
     >
       <div className={`
         ${loading ? 'animate-spin' : ''}
-        p-2 rounded-full bg-white/60 shadow-sm
+        flex items-center justify-center
       `}>
         {loading ? <RefreshCw className="w-5 h-5 text-slate-400" /> : icon}
       </div>

@@ -7,6 +7,8 @@ import type { RemoteAction } from '../types';
 interface RemoteGameState {
   bankCount?: number;
   gameTokens?: number;
+  activeMission?: 'morning' | 'evening' | 'none';
+  missionTimeRemaining?: string;
   responsibilities?: Array<{ id: string; pointsEarned: number; pointsRequired: number }>;
 }
 
@@ -81,6 +83,8 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
       />
 
       <MissionsSection 
+        activeMission={state?.activeMission}
+        missionTimeRemaining={state?.missionTimeRemaining}
         loadingActions={loadingActions}
         dispatchAction={dispatchAction}
       />
