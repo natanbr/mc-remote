@@ -25,7 +25,60 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
 
   return (
     <main className="p-5 flex flex-col gap-14">
-      {/* BANK TOKENS */}
+      {/* 1. EFFECTS */}
+      <Section title="Effects">
+        <div className="grid grid-cols-4 gap-x-3 gap-y-2">
+          {/* Labels */}
+          <div className="col-span-2 text-[10px] font-black uppercase text-emerald-500 tracking-tight pl-1">Positive</div>
+          <div className="col-span-2 text-[10px] font-black uppercase text-red-500 tracking-tight pl-1">Negative</div>
+
+          {/* Positive */}
+          <ControlButton 
+            icon={<span className="text-xl">😊👍</span>} 
+            label="Good Job" 
+            loading={loadingActions.has('fx-good-job')}
+            onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'good-job' }, 'fx-good-job')} 
+            bg="bg-emerald-50"
+            border="border-emerald-100"
+          />
+          <ControlButton 
+            icon={<span className="text-xl">🎉</span>} 
+            label="Confetti" 
+            loading={loadingActions.has('fx-confetti')}
+            onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'confetti' }, 'fx-confetti')} 
+            bg="bg-emerald-50"
+            border="border-emerald-100"
+          />
+
+          {/* Negative */}
+          <ControlButton 
+            icon={<span className="text-xl">😱</span>} 
+            label="Too Loud" 
+            loading={loadingActions.has('fx-too-loud')}
+            onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'too-loud' }, 'fx-too-loud')} 
+            bg="bg-red-50"
+            border="border-red-100"
+          />
+          <ControlButton 
+            icon={<span className="text-xl">☝️</span>} 
+            label="No" 
+            loading={loadingActions.has('fx-cheat')}
+            onClick={() => dispatchAction({ type: 'CHEAT_ATTEMPT' }, 'fx-cheat')} 
+            bg="bg-red-50"
+            border="border-red-100"
+          />
+        </div>
+      </Section>
+
+      {/* 2. MISSIONS */}
+      <MissionsSection 
+        activeMission={state?.activeMission}
+        missionTimeRemaining={state?.missionTimeRemaining}
+        loadingActions={loadingActions}
+        dispatchAction={dispatchAction}
+      />
+
+      {/* 3. TOKEN MANAGEMENT: BANK TOKENS */}
       <Section 
         title={
           <div className="flex items-center justify-between w-full">
@@ -74,6 +127,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
         </div>
       </Section>
 
+      {/* 4. TOKEN MANAGEMENT: RESPONSIBILITIES */}
       <ResponsibilitiesSection 
         gameTokens={state?.gameTokens}
         recycling={recycling}
@@ -81,58 +135,6 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
         loadingActions={loadingActions}
         dispatchAction={dispatchAction}
       />
-
-      <MissionsSection 
-        activeMission={state?.activeMission}
-        missionTimeRemaining={state?.missionTimeRemaining}
-        loadingActions={loadingActions}
-        dispatchAction={dispatchAction}
-      />
-
-      {/* EFFECTS */}
-      <Section title="Effects">
-        <div className="grid grid-cols-4 gap-x-3 gap-y-2">
-          {/* Labels */}
-          <div className="col-span-2 text-[10px] font-black uppercase text-emerald-500 tracking-tight pl-1">Positive</div>
-          <div className="col-span-2 text-[10px] font-black uppercase text-red-500 tracking-tight pl-1">Negative</div>
-
-          {/* Positive */}
-          <ControlButton 
-            icon={<span className="text-xl">😊👍</span>} 
-            label="Good Job" 
-            loading={loadingActions.has('fx-good-job')}
-            onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'good-job' }, 'fx-good-job')} 
-            bg="bg-emerald-50"
-            border="border-emerald-100"
-          />
-          <ControlButton 
-            icon={<span className="text-xl">🎉</span>} 
-            label="Confetti" 
-            loading={loadingActions.has('fx-confetti')}
-            onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'confetti' }, 'fx-confetti')} 
-            bg="bg-emerald-50"
-            border="border-emerald-100"
-          />
-
-          {/* Negative */}
-          <ControlButton 
-            icon={<span className="text-xl">😱</span>} 
-            label="Too Loud" 
-            loading={loadingActions.has('fx-too-loud')}
-            onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: 'too-loud' }, 'fx-too-loud')} 
-            bg="bg-red-50"
-            border="border-red-100"
-          />
-          <ControlButton 
-            icon={<span className="text-xl">☝️</span>} 
-            label="No" 
-            loading={loadingActions.has('fx-cheat')}
-            onClick={() => dispatchAction({ type: 'CHEAT_ATTEMPT' }, 'fx-cheat')} 
-            bg="bg-red-50"
-            border="border-red-100"
-          />
-        </div>
-      </Section>
 
     </main>
   );
