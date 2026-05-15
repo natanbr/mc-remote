@@ -39,9 +39,9 @@ export function useRemoteControl() {
       }
     });
 
-    ch.on('broadcast', { event: 'state-update' }, (payload: { payload?: { key: string; state: unknown } }) => {
-      const { key: receivedKey, state } = payload.payload || {};
-      if (receivedKey === secretKeyRef.current) {
+    ch.on('broadcast', { event: 'state-update' }, (payload) => {
+      const { key: receivedKey, state } = (payload.payload || {}) as { key?: string; state?: Record<string, unknown> };
+      if (receivedKey === secretKeyRef.current && state) {
         setGameState(state);
       }
     });

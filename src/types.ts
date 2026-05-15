@@ -19,8 +19,8 @@ export type ActionType =
   | 'TOGGLE_WHINING'
   | 'TRIGGER_ANIMATION'
   | 'CHEAT_ATTEMPT'
-  | 'ADD_RESPONSIBILITY_POINT'
-  | 'RESET_RESPONSIBILITY';
+  | 'RESET_RESPONSIBILITY'
+  | 'SNAKE_DIR';
 
 export interface RemoteAction {
   type: ActionType;
