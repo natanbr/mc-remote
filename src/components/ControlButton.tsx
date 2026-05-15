@@ -44,7 +44,9 @@ export function ControlButton({
       `}>
         {loading ? <RefreshCw className="w-5 h-5 text-slate-400" /> : icon}
       </div>
-      <span className="font-black text-slate-700 text-[12px] uppercase tracking-tight">{label}</span>
+      {label && (
+        <span className="font-black text-slate-700 text-[12px] uppercase tracking-tight">{label}</span>
+      )}
     </motion.button>
   );
 }
