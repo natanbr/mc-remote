@@ -20,6 +20,7 @@ export function SnakeController({ dispatchAction, onBack }: SnakeControllerProps
             <ControlButton 
                icon={<span className="text-4xl">⬆️</span>} 
                label="" 
+               aria-label="Snake Up"
                onClick={() => dispatchAction({ type: 'SNAKE_DIR', dir: 'up' }, 'snake-up')} 
                bg="bg-slate-800"
                border="border-slate-700"
@@ -29,6 +30,7 @@ export function SnakeController({ dispatchAction, onBack }: SnakeControllerProps
             <ControlButton 
                icon={<span className="text-4xl">⬅️</span>} 
                label="" 
+               aria-label="Snake Left"
                onClick={() => dispatchAction({ type: 'SNAKE_DIR', dir: 'left' }, 'snake-left')} 
                bg="bg-slate-800"
                border="border-slate-700"
@@ -37,6 +39,7 @@ export function SnakeController({ dispatchAction, onBack }: SnakeControllerProps
             <ControlButton 
                icon={<span className="text-4xl">⬇️</span>} 
                label="" 
+               aria-label="Snake Down"
                onClick={() => dispatchAction({ type: 'SNAKE_DIR', dir: 'down' }, 'snake-down')} 
                bg="bg-slate-800"
                border="border-slate-700"
@@ -45,6 +48,7 @@ export function SnakeController({ dispatchAction, onBack }: SnakeControllerProps
             <ControlButton 
                icon={<span className="text-4xl">➡️</span>} 
                label="" 
+               aria-label="Snake Right"
                onClick={() => dispatchAction({ type: 'SNAKE_DIR', dir: 'right' }, 'snake-right')} 
                bg="bg-slate-800"
                border="border-slate-700"

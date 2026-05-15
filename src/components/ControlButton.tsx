@@ -28,6 +28,7 @@ export function ControlButton({
       whileTap={{ scale: 0.94, y: 2 }}
       onClick={onClick}
       disabled={loading}
+      aria-label={label || (typeof icon === 'string' ? icon : 'action button')}
       className={`
         ${bg} ${border} border-[1.5px] rounded-2xl p-4
         flex flex-col items-center justify-center gap-2

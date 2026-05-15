@@ -101,13 +101,17 @@ export function useRemoteControl() {
 
   const dispatchAction = useCallback(async (action: RemoteAction, actionId: string) => {
     if (!channelRef.current || !config?.secretKey) return;
-    if (loadingActions.has(actionId)) return;
+    
+    // Only block if it's not a game input (which needs high responsiveness)
+    if (action.type !== 'SNAKE_DIR' && loadingActions.has(actionId)) return;
 
     if (window.navigator && window.navigator.vibrate) {
       window.navigator.vibrate([40]);
     }
 
-    setLoadingActions(prev => new Set(prev).add(actionId));
+    if (action.type !== 'SNAKE_DIR') {
+      setLoadingActions(prev => new Set(prev).add(actionId));
+    }
 
     try {
       const payload: BroadcastPayload = {
@@ -132,11 +136,13 @@ export function useRemoteControl() {
       console.error('Dispatch failed:', e);
       showFeedback('Failed! ⚠️');
     } finally {
-      setLoadingActions(prev => {
-        const next = new Set(prev);
-        next.delete(actionId);
-        return next;
-      });
+      if (action.type !== 'SNAKE_DIR') {
+        setLoadingActions(prev => {
+          const next = new Set(prev);
+          next.delete(actionId);
+          return next;
+        });
+      }
     }
   }, [config, loadingActions, showFeedback]);
 
