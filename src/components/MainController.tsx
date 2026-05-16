@@ -8,7 +8,8 @@ interface RemoteGameState {
   bankCount?: number;
   gameTokens?: number;
   activeMission?: 'morning' | 'evening' | 'none';
-  missionTimeRemaining?: string;
+  missionStartedAt?: string | null;
+  missionDurationMins?: number | null;
   responsibilities?: Array<{ id: string; pointsEarned: number; pointsRequired: number }>;
 }
 
@@ -73,7 +74,8 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
       {/* 2. MISSIONS */}
       <MissionsSection 
         activeMission={state?.activeMission}
-        missionTimeRemaining={state?.missionTimeRemaining}
+        missionStartedAt={state?.missionStartedAt}
+        missionDurationMins={state?.missionDurationMins}
         loadingActions={loadingActions}
         dispatchAction={dispatchAction}
       />
