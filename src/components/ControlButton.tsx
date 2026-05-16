@@ -7,6 +7,7 @@ interface ControlButtonProps {
   label: string;
   onClick: () => void;
   loading?: boolean;
+  disabled?: boolean;
   bg?: string;
   border?: string;
   fullWidth?: boolean;
@@ -18,6 +19,7 @@ export function ControlButton({
   label, 
   onClick, 
   loading, 
+  disabled,
   bg = "bg-white", 
   border = "border-slate-200", 
   fullWidth = false,
@@ -25,16 +27,16 @@ export function ControlButton({
 }: ControlButtonProps) {
   return (
     <motion.button
-      whileTap={{ scale: 0.94, y: 2 }}
+      whileTap={{ scale: disabled || loading ? 1 : 0.94, y: disabled || loading ? 0 : 2 }}
       onClick={onClick}
-      disabled={loading}
+      disabled={loading || disabled}
       aria-label={label || (typeof icon === 'string' ? icon : 'action button')}
       className={`
         ${bg} ${border} border-[1.5px] rounded-2xl p-4
         flex flex-col items-center justify-center gap-2
         shadow-sm active:shadow-inner transition-all
         ${fullWidth ? 'col-span-full flex-row' : ''}
-        ${loading ? 'opacity-70 grayscale-[0.5]' : 'opacity-100'}
+        ${loading || disabled ? 'opacity-50 grayscale-[0.5] cursor-not-allowed' : 'opacity-100'}
         ${className}
       `}
     >

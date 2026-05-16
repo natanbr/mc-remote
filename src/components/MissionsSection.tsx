@@ -40,17 +40,17 @@ export function MissionsSection({ activeMission, loadingActions, dispatchAction 
           />
         </div>
 
-        {/* Time Adjustments (As Is) */}
+        {/* Time Adjustments (Shared) */}
         <div className="grid grid-cols-2 gap-3">
           <div className="grid grid-cols-3 gap-1.5">
-            <ControlButton icon={<span className="text-[10px] font-bold">+1m</span>} label="" onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 1 }, 'm-time-1')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">+5m</span>} label="" onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 5 }, 'm-time-5')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">+10m</span>} label="" onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'morning', deltaMinutes: 10 }, 'm-time-10')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
+            <ControlButton icon={<span className="text-[10px] font-bold">+1m</span>} label="" disabled={!activeMission || activeMission === 'none'} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 1 }, 'm-time-1')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
+            <ControlButton icon={<span className="text-[10px] font-bold">+5m</span>} label="" disabled={!activeMission || activeMission === 'none'} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 5 }, 'm-time-5')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
+            <ControlButton icon={<span className="text-[10px] font-bold">+10m</span>} label="" disabled={!activeMission || activeMission === 'none'} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 10 }, 'm-time-10')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
           </div>
           <div className="grid grid-cols-3 gap-1.5">
-            <ControlButton icon={<span className="text-[10px] font-bold">-1m</span>} label="" onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'evening', deltaMinutes: -1 }, 'e-time-1')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">-5m</span>} label="" onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'evening', deltaMinutes: -5 }, 'e-time-5')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">-10m</span>} label="" onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: 'evening', deltaMinutes: -10 }, 'e-time-10')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
+            <ControlButton icon={<span className="text-[10px] font-bold">-1m</span>} label="" disabled={!activeMission || activeMission === 'none'} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -1 }, 'e-time-1')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
+            <ControlButton icon={<span className="text-[10px] font-bold">-5m</span>} label="" disabled={!activeMission || activeMission === 'none'} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -5 }, 'e-time-5')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
+            <ControlButton icon={<span className="text-[10px] font-bold">-10m</span>} label="" disabled={!activeMission || activeMission === 'none'} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -10 }, 'e-time-10')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
           </div>
         </div>
 
@@ -59,6 +59,7 @@ export function MissionsSection({ activeMission, loadingActions, dispatchAction 
           <ControlButton 
             icon={<span className="text-xl">⏹️</span>} 
             label="Stop" 
+            disabled={!activeMission || activeMission === 'none'}
             loading={loadingActions.has('shared-stop')}
             onClick={() => dispatchAction({ type: 'CANCEL_MISSION', missionPhase: targetPhase }, 'shared-stop')} 
             bg="bg-slate-100"
@@ -67,6 +68,7 @@ export function MissionsSection({ activeMission, loadingActions, dispatchAction 
           <ControlButton 
             icon={<span className="text-xl">🔄</span>} 
             label="Reset" 
+            disabled={!activeMission || activeMission === 'none'}
             loading={loadingActions.has('shared-reset')}
             onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: targetPhase }, 'shared-reset')} 
             bg="bg-slate-100"
@@ -75,6 +77,7 @@ export function MissionsSection({ activeMission, loadingActions, dispatchAction 
           <ControlButton 
             icon={<span className="text-xl">😱</span>} 
             label="Whine" 
+            disabled={!activeMission || activeMission === 'none'}
             loading={loadingActions.has('shared-whine')}
             onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: targetPhase, lockedFromUI: true }, 'shared-whine')} 
             bg="bg-red-50"
