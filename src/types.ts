@@ -20,7 +20,16 @@ export type ActionType =
   | 'TRIGGER_ANIMATION'
   | 'CHEAT_ATTEMPT'
   | 'RESET_RESPONSIBILITY'
+  | 'SET_PRIVILEGE_STATUS'
   | 'SNAKE_DIR';
+
+export interface PrivilegeCard {
+  id: string;
+  label: string;
+  icon: string;
+  status: 'active' | 'suspended' | 'locked';
+  suspendedUntil: string | null;
+}
 
 export interface RemoteAction {
   type: ActionType;

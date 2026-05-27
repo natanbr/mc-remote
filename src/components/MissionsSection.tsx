@@ -16,8 +16,8 @@ function useCountdown(startedAt: string | null | undefined, durationMins: number
 
   useEffect(() => {
     if (!startedAt || durationMins == null) {
-      setDisplay(null);
-      return;
+      const timer = setTimeout(() => setDisplay(null), 0);
+      return () => clearTimeout(timer);
     }
 
     const tick = () => {
@@ -36,9 +36,12 @@ function useCountdown(startedAt: string | null | undefined, durationMins: number
       setDisplay(`${mins}:${secs}`);
     };
 
-    tick();
+    const timer = setTimeout(tick, 0);
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [startedAt, durationMins]);
 
   return display;
