@@ -4,6 +4,14 @@ import { Shield, ShieldAlert, X, Clock } from 'lucide-react';
 import { Section } from './Section';
 import type { RemoteAction, PrivilegeCard } from '../types';
 
+const DEFAULT_PRIVILEGES: PrivilegeCard[] = [
+  { id: 'knife', label: 'Knife', icon: 'Utensils', status: 'active', suspendedUntil: null },
+  { id: 'scissors', label: 'Scissors', icon: 'Scissors', status: 'active', suspendedUntil: null },
+  { id: 'fire', label: 'Fire Tongs', icon: 'Flame', status: 'active', suspendedUntil: null },
+  { id: 'garden', label: 'Garden', icon: 'Sprout', status: 'active', suspendedUntil: null },
+  { id: 'phone-games', label: 'Phone Games', icon: 'Smartphone', status: 'active', suspendedUntil: null },
+];
+
 interface PrivilegesSectionProps {
   privileges?: PrivilegeCard[];
   loadingActions: Set<string>;
@@ -47,7 +55,7 @@ export function PrivilegesSection({ privileges, loadingActions, dispatchAction }
     return () => clearInterval(interval);
   }, []);
 
-  if (!privileges || privileges.length === 0) return null;
+  const displayPrivileges = privileges && privileges.length > 0 ? privileges : DEFAULT_PRIVILEGES;
 
   const handleSuspend = (hours: number) => {
     if (!selectedPriv) return;
@@ -70,7 +78,7 @@ export function PrivilegesSection({ privileges, loadingActions, dispatchAction }
     }, `priv-reinstate-${p.id}`);
   };
 
-  const allActive = privileges.every(p => p.status !== 'suspended');
+  const allActive = displayPrivileges.every(p => p.status !== 'suspended');
 
   return (
     <Section
@@ -96,7 +104,7 @@ export function PrivilegesSection({ privileges, loadingActions, dispatchAction }
       }
     >
       <div className="grid grid-cols-5 gap-2">
-        {privileges.map(p => {
+        {displayPrivileges.map(p => {
           const isSuspended = p.status === 'suspended';
           const countdown = getRemainingTimeText(p.suspendedUntil);
 
