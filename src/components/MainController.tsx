@@ -27,9 +27,9 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
   const activity = state?.responsibilities?.find((r) => r.id === 'activity');
 
   return (
-    <main className="p-5 max-w-md md:max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+    <main className="p-5 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
       {/* Left Column */}
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-8 w-full max-w-md md:max-w-none mx-auto">
         {/* 1. EFFECTS */}
         <Section title="Effects">
           <div className="grid grid-cols-4 gap-x-3 gap-y-2">
@@ -86,7 +86,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
       </div>
 
       {/* Right Column */}
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-8 w-full max-w-md md:max-w-none mx-auto">
         {/* 3. TOKEN MANAGEMENT: BANK TOKENS */}
         <Section 
           title={

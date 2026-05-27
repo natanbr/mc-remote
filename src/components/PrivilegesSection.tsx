@@ -37,10 +37,6 @@ function getRemainingTimeText(suspendedUntil: string | null): string {
   return `${mins}m left`;
 }
 
-function getSuspendedUntilDate(hours: number): string {
-  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-}
-
 export function PrivilegesSection({ privileges, loadingActions, dispatchAction }: PrivilegesSectionProps) {
   const [selectedPriv, setSelectedPriv] = useState<PrivilegeCard | null>(null);
 
@@ -55,7 +51,7 @@ export function PrivilegesSection({ privileges, loadingActions, dispatchAction }
 
   const handleSuspend = (hours: number) => {
     if (!selectedPriv) return;
-    const until = getSuspendedUntilDate(hours);
+    const until = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     dispatchAction({
       type: 'SET_PRIVILEGE_STATUS',
       cardId: selectedPriv.id,
