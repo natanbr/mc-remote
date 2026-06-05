@@ -5,6 +5,19 @@ import { MissionsSection } from './MissionsSection';
 import { PrivilegesSection } from './PrivilegesSection';
 import type { RemoteAction, PrivilegeCard } from '../types';
 
+const REACTION_EMOJIS = [
+  { id: 'clap', codepoint: '1f44f', label: 'Clap', fallback: '👏' },
+  { id: 'thumbs-up', codepoint: '1f44d', label: 'Like', fallback: '👍' },
+  { id: 'slightly-happy', codepoint: '1f642', label: 'Smile', fallback: '🙂' },
+  { id: 'triumph', codepoint: '1f624', label: 'Triumph', fallback: '😤' },
+  { id: 'scrunched', codepoint: '1f616', label: 'Ouch', fallback: '😖' },
+  { id: 'shaking-face', codepoint: '1fae8', label: 'Shook', fallback: '🫨' },
+  { id: 'hear-no-evil', codepoint: '1f649', label: 'Hear-no-evil', fallback: '🙉' },
+  { id: 'hourglass', codepoint: '23f3', label: 'Wait', fallback: '⏳' },
+  { id: 'check-mark', codepoint: '2705', label: 'Yes', fallback: '✅' },
+  { id: 'cross-mark', codepoint: '274c', label: 'No', fallback: '❌' },
+];
+
 interface RemoteGameState {
   bankCount?: number;
   gameTokens?: number;
@@ -72,6 +85,29 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
               bg="bg-red-50"
               border="border-red-100"
             />
+          </div>
+        </Section>
+
+        {/* REACTIONS */}
+        <Section title="Reactions">
+          <div className="grid grid-cols-5 gap-2">
+            {REACTION_EMOJIS.map((emoji) => (
+              <ControlButton
+                key={emoji.id}
+                icon={
+                  <picture className="w-8 h-8 flex items-center justify-center pointer-events-none select-none">
+                    <source srcSet={`https://fonts.gstatic.com/s/e/notoemoji/latest/${emoji.codepoint}/512.webp`} type="image/webp" />
+                    <img src={`https://fonts.gstatic.com/s/e/notoemoji/latest/${emoji.codepoint}/512.gif`} alt={emoji.fallback} className="w-full h-full object-contain" />
+                  </picture>
+                }
+                label={emoji.label}
+                loading={loadingActions.has(`fx-${emoji.id}`)}
+                onClick={() => dispatchAction({ type: 'TRIGGER_ANIMATION', animation: emoji.id }, `fx-${emoji.id}`)}
+                bg="bg-slate-50"
+                border="border-slate-100"
+                className="!p-2 rounded-xl [&_span]:text-[9px] [&_span]:tracking-tighter"
+              />
+            ))}
           </div>
         </Section>
 
