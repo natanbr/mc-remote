@@ -21,7 +21,8 @@ export type ActionType =
   | 'CHEAT_ATTEMPT'
   | 'RESET_RESPONSIBILITY'
   | 'SET_PRIVILEGE_STATUS'
-  | 'SNAKE_DIR';
+  | 'SNAKE_DIR'
+  | 'COMPLETE_TASK';
 
 export interface PrivilegeCard {
   id: string;

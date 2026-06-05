@@ -3,6 +3,7 @@ import { Section } from './Section';
 import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { MissionsSection } from './MissionsSection';
 import { PrivilegesSection } from './PrivilegesSection';
+import { ActivityLogsSection } from './ActivityLogsSection';
 import type { RemoteAction, PrivilegeCard } from '../types';
 
 const REACTION_EMOJIS = [
@@ -24,6 +25,18 @@ interface RemoteGameState {
   activeMission?: 'morning' | 'evening' | 'none';
   missionStartedAt?: string | null;
   missionDurationMins?: number | null;
+  whiningDetected?: boolean;
+  missionTasks?: Array<{ id: string; label: string; icon: string; completed: boolean; locked: boolean }>;
+  activityLogs?: Array<{
+    id: string;
+    timestamp: string;
+    icon: string;
+    message: string;
+    delta?: number;
+    type: string;
+    colorKey?: string;
+    isRemote?: boolean;
+  }>;
   responsibilities?: Array<{ id: string; pointsEarned: number; pointsRequired: number }>;
   privileges?: PrivilegeCard[];
 }
@@ -116,6 +129,8 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
           activeMission={state?.activeMission}
           missionStartedAt={state?.missionStartedAt}
           missionDurationMins={state?.missionDurationMins}
+          whiningDetected={state?.whiningDetected}
+          missionTasks={state?.missionTasks}
           loadingActions={loadingActions}
           dispatchAction={dispatchAction}
         />
@@ -188,6 +203,13 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
           dispatchAction={dispatchAction}
         />
       </div>
+
+      {/* 6. LOGS */}
+      {state?.activityLogs && state.activityLogs.length > 0 && (
+        <div className="md:col-span-2 w-full max-w-md md:max-w-none mx-auto">
+          <ActivityLogsSection logs={state.activityLogs} />
+        </div>
+      )}
     </main>
   );
 }

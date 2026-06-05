@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Check, RefreshCw, Wand2, Gamepad2 } from 'lucide-react';
 import { useRemoteControl } from './hooks/useRemoteControl';
@@ -18,6 +18,19 @@ export default function App() {
   } = useRemoteControl();
 
   const [view, setView] = useState<'main' | 'snake'>('main');
+
+  const snakeGameActive = gameState?.snakeGameActive;
+
+  // Auto-switch remote view based on host game state transitions
+  useEffect(() => {
+    if (typeof snakeGameActive === 'boolean') {
+      const targetView = snakeGameActive ? 'snake' : 'main';
+      const timer = setTimeout(() => {
+        setView(targetView);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [snakeGameActive]);
 
   if (!isConfigured) return <SetupRequiredScreen />;
   if (!config) return <NotPairedScreen />;

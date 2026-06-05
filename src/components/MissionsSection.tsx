@@ -3,10 +3,32 @@ import { ControlButton } from './ControlButton';
 import { Section } from './Section';
 import type { RemoteAction } from '../types';
 
+const ICON_MAP: Record<string, string> = {
+  Shirt:         '👕',
+  Smile:         '🦷',
+  Toothbrush:    '🪥',
+  Droplets:      '🚿',
+  Droplet:       '💧',
+  Moon:          '🌙',
+  Layers:        '👘',
+  ToyBrick:      '🧸',
+  Sparkles:      '✨',
+  BookOpen:      '📖',
+  MessageCircle: '💬',
+  BedDouble:     '🛏️',
+  MoonStar:      '🌙',
+  Dog:           '🐕',
+  Pill:          '💊',
+};
+
+const getTaskIcon = (name: string) => ICON_MAP[name] ?? (name.match(/^[A-Za-z]+$/) ? '⭐' : name);
+
 interface MissionsSectionProps {
   activeMission?: 'morning' | 'evening' | 'none';
   missionStartedAt?: string | null;
   missionDurationMins?: number | null;
+  whiningDetected?: boolean;
+  missionTasks?: Array<{ id: string; label: string; icon: string; completed: boolean; locked: boolean }>;
   loadingActions: Set<string>;
   dispatchAction: (action: RemoteAction, actionId: string) => void;
 }
@@ -16,8 +38,10 @@ function useCountdown(startedAt: string | null | undefined, durationMins: number
 
   useEffect(() => {
     if (!startedAt || durationMins == null) {
-      setDisplay(null);
-      return;
+      const timer = setTimeout(() => {
+        setDisplay(null);
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
     const tick = () => {
@@ -38,7 +62,9 @@ function useCountdown(startedAt: string | null | undefined, durationMins: number
 
     tick();
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [startedAt, durationMins]);
 
   return display;
@@ -121,15 +147,53 @@ export function MissionsSection({ activeMission, missionStartedAt, missionDurati
             className="h-16 rounded-xl"
           />
           <ControlButton 
-            icon={<span className="text-xl">😱</span>} 
-            label="Whine" 
+            icon={<span className="text-xl">{whiningDetected ? '😠' : '😱'}</span>} 
+            label={whiningDetected ? 'Whining Active' : 'Whine'} 
             disabled={!isActive}
             loading={loadingActions.has('shared-whine')}
             onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: targetPhase, lockedFromUI: true }, 'shared-whine')} 
-            bg="bg-red-50"
-            className="h-16 rounded-xl"
+            bg={whiningDetected ? 'bg-rose-500 text-white animate-pulse' : 'bg-red-50 text-red-700'}
+            border={whiningDetected ? 'border-rose-600' : 'border-red-100'}
+            className="h-16 rounded-xl font-black"
           />
         </div>
+
+        {/* Task Checklist */}
+        {isActive && missionTasks && missionTasks.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-3 pl-1">Tasks Checklist</div>
+            <div className="flex flex-col gap-2">
+              {missionTasks.map((task) => (
+                <button
+                  key={task.id}
+                  onClick={() => !task.locked && dispatchAction({ type: 'COMPLETE_TASK', missionPhase: targetPhase, taskId: task.id }, `task-${task.id}`)}
+                  className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                    task.completed 
+                      ? 'bg-emerald-50/60 border-emerald-200 text-emerald-800' 
+                      : task.locked 
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                  }`}
+                  disabled={task.locked}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg leading-none">{getTaskIcon(task.icon)}</span>
+                    <span className={`text-sm font-bold ${task.completed ? 'line-through opacity-60' : ''}`}>
+                      {task.label}
+                    </span>
+                  </div>
+                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
+                    task.completed 
+                      ? 'bg-emerald-500 border-emerald-600 text-white' 
+                      : 'border-slate-300'
+                  }`}>
+                    {task.completed && <span className="text-[10px] font-black">✓</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
     </Section>

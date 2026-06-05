@@ -33,6 +33,10 @@ const DURATIONS = [
   { label: '2 Weeks', hours: 336 },
 ];
 
+function getFutureDateISOString(hours: number): string {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
 function getRemainingTimeText(suspendedUntil: string | null): string {
   if (!suspendedUntil) return '';
   const diff = new Date(suspendedUntil).getTime() - Date.now();
@@ -59,7 +63,7 @@ export function PrivilegesSection({ privileges, loadingActions, dispatchAction }
 
   const handleSuspend = (hours: number) => {
     if (!selectedPriv) return;
-    const until = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    const until = getFutureDateISOString(hours);
     dispatchAction({
       type: 'SET_PRIVILEGE_STATUS',
       cardId: selectedPriv.id,
