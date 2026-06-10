@@ -108,9 +108,13 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
               <ControlButton
                 key={emoji.id}
                 icon={
-                  <picture className="w-8 h-8 flex items-center justify-center pointer-events-none select-none">
+                  <picture className="pointer-events-none select-none flex items-center justify-center">
                     <source srcSet={`https://fonts.gstatic.com/s/e/notoemoji/latest/${emoji.codepoint}/512.webp`} type="image/webp" />
-                    <img src={`https://fonts.gstatic.com/s/e/notoemoji/latest/${emoji.codepoint}/512.gif`} alt={emoji.fallback} className="w-full h-full object-contain" />
+                    <img 
+                      src={`https://fonts.gstatic.com/s/e/notoemoji/latest/${emoji.codepoint}/512.gif`} 
+                      alt={emoji.fallback} 
+                      className="w-10 h-10 object-contain" 
+                    />
                   </picture>
                 }
                 label={emoji.label}
@@ -123,6 +127,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
             ))}
           </div>
         </Section>
+
 
         {/* 2. MISSIONS */}
         <MissionsSection 
