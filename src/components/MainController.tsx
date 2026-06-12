@@ -4,7 +4,7 @@ import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { MissionsSection } from './MissionsSection';
 import { PrivilegesSection } from './PrivilegesSection';
 import { ActivityLogsSection } from './ActivityLogsSection';
-import type { RemoteAction, PrivilegeCard } from '../types';
+import type { RemoteAction, PrivilegeCard, RemoteMission } from '../types';
 
 const REACTION_EMOJIS = [
   { id: 'clap', codepoint: '1f44f', label: 'Clap', fallback: '👏' },
@@ -39,6 +39,7 @@ interface RemoteGameState {
   }>;
   responsibilities?: Array<{ id: string; pointsEarned: number; pointsRequired: number }>;
   privileges?: PrivilegeCard[];
+  missions?: RemoteMission[];
 }
 
 interface MainControllerProps {
@@ -136,6 +137,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
           missionDurationMins={state?.missionDurationMins}
           whiningDetected={state?.whiningDetected}
           missionTasks={state?.missionTasks}
+          missions={state?.missions}
           loadingActions={loadingActions}
           dispatchAction={dispatchAction}
         />

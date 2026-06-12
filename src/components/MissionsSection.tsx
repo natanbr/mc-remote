@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ControlButton } from './ControlButton';
+import { Play, Square, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Section } from './Section';
-import type { RemoteAction } from '../types';
+import type { RemoteAction, RemoteMission } from '../types';
 
 const ICON_MAP: Record<string, string> = {
   Shirt:         '👕',
@@ -29,6 +29,7 @@ interface MissionsSectionProps {
   missionDurationMins?: number | null;
   whiningDetected?: boolean;
   missionTasks?: Array<{ id: string; label: string; icon: string; completed: boolean; locked: boolean }>;
+  missions?: RemoteMission[];
   loadingActions: Set<string>;
   dispatchAction: (action: RemoteAction, actionId: string) => void;
 }
@@ -70,131 +71,307 @@ function useCountdown(startedAt: string | null | undefined, durationMins: number
   return display;
 }
 
-export function MissionsSection({ activeMission, missionStartedAt, missionDurationMins, loadingActions, dispatchAction }: MissionsSectionProps) {
-  const isActive = !!(activeMission && activeMission !== 'none');
-  const targetPhase = isActive ? activeMission! : 'morning';
-  const countdown = useCountdown(missionStartedAt, missionDurationMins);
+interface MissionCardProps {
+  mission: {
+    phase: 'morning' | 'evening';
+    active: boolean;
+    startedAt?: string | null;
+    durationMins?: number | null;
+    whiningDetected: boolean;
+    tasks: Array<{ id: string; label: string; icon: string; completed: boolean; locked: boolean }>;
+  };
+  countdown: string | null;
+  loadingActions: Set<string>;
+  dispatchAction: (action: RemoteAction, actionId: string) => void;
+}
 
-  const missionColor = activeMission === 'morning' ? 'text-amber-600' : 'text-indigo-600';
-  const missionLabel = activeMission === 'morning' ? '☀️ Morning' : activeMission === 'evening' ? '🌙 Evening' : null;
+function MissionCard({ mission, countdown, loadingActions, dispatchAction }: MissionCardProps) {
+  const isMorning = mission.phase === 'morning';
+  const isActive = mission.active;
+  const targetPhase = mission.phase;
+
+  const [expanded, setExpanded] = useState(isActive);
+
+  // Auto-expand card if the mission becomes active
+  useEffect(() => {
+    if (isActive) {
+      setExpanded(true);
+    }
+  }, [isActive]);
+
+  const tasksTotal = mission.tasks.length;
+  const tasksDone = mission.tasks.filter(t => t.completed).length;
+  const progressPercent = tasksTotal > 0 ? (tasksDone / tasksTotal) * 100 : 0;
+
+  // Set theme colors based on morning/evening phase
+  const theme = isMorning
+    ? {
+        cardBg: 'bg-gradient-to-br from-amber-50 to-orange-100/50 border-amber-200/50 shadow-amber-100/10',
+        titleColor: 'text-amber-800',
+        progressFill: 'bg-amber-500',
+        btnStartBg: 'bg-amber-500 active:bg-amber-600 text-white',
+        btnTimeBg: 'bg-amber-100/60 text-amber-800 hover:bg-amber-200/60 border-amber-200/30',
+        accentColor: 'text-amber-600',
+        pulseDot: 'bg-amber-500',
+      }
+    : {
+        cardBg: 'bg-gradient-to-br from-indigo-50 to-purple-100/50 border-indigo-200/50 shadow-indigo-100/10',
+        titleColor: 'text-indigo-800',
+        progressFill: 'bg-indigo-600',
+        btnStartBg: 'bg-indigo-600 active:bg-indigo-700 text-white',
+        btnTimeBg: 'bg-indigo-100/60 text-indigo-800 hover:bg-indigo-200/60 border-indigo-200/30',
+        accentColor: 'text-indigo-600',
+        pulseDot: 'bg-indigo-600',
+      };
 
   return (
-    <Section title="Missions">
-      <div className="flex flex-col gap-4">
-        
-        {/* Active Mission Status Banner */}
-        {isActive && countdown && (
-          <div className={`flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-100`}>
-            <span className={`text-xs font-black uppercase tracking-wide ${missionColor}`}>{missionLabel} Active</span>
-            <span className={`text-lg font-mono font-black ${missionColor}`}>{countdown}</span>
+    <div className={`p-4 rounded-2xl border transition-all duration-300 ${theme.cardBg}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{isMorning ? '☀️' : '🌙'}</span>
+          <span className={`font-black tracking-tight text-sm uppercase ${theme.titleColor}`}>
+            {isMorning ? 'Morning Mission' : 'Evening Mission'}
+          </span>
+        </div>
+
+        {/* Status Badge & Countdown */}
+        {isActive ? (
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${theme.pulseDot}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${theme.pulseDot}`}></span>
+            </span>
+            {countdown ? (
+              <span className={`text-sm font-mono font-black ${theme.accentColor}`}>{countdown}</span>
+            ) : (
+              <span className="text-xs font-bold uppercase tracking-wider text-red-500">Active</span>
+            )}
           </div>
+        ) : (
+          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-200/40 px-2 py-0.5 rounded-full border border-slate-200/20">
+            Inactive
+          </span>
+        )}
+      </div>
+
+      {/* Progress Bar */}
+      {tasksTotal > 0 && (
+        <div className="mb-4 bg-white/40 p-2.5 rounded-xl border border-white/50">
+          <div className="flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-tight mb-1.5">
+            <span>Progress</span>
+            <span>{tasksDone}/{tasksTotal} Done</span>
+          </div>
+          <div className="w-full bg-slate-200/60 rounded-full h-2 overflow-hidden border border-slate-200/20">
+            <div className={`h-full rounded-full transition-all duration-500 ${theme.progressFill}`} style={{ width: `${progressPercent}%` }}></div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls Grid */}
+      <div className="flex flex-col gap-3">
+        {!isActive ? (
+          <div className="flex gap-2">
+            <button
+              onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: targetPhase }, `${targetPhase}-start`)}
+              disabled={loadingActions.has(`${targetPhase}-start`)}
+              className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all duration-200 active:scale-[0.98] ${theme.btnStartBg} flex items-center justify-center gap-2`}
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              Start Mission
+            </button>
+            <button
+              onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: targetPhase }, `${targetPhase}-reset`)}
+              disabled={loadingActions.has(`${targetPhase}-reset`)}
+              className="py-3 px-4 bg-white/80 hover:bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-xs transition-all duration-200 active:scale-[0.98]"
+              title="Reset Tasks"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Active Control Actions */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => dispatchAction({ type: 'CANCEL_MISSION', missionPhase: targetPhase }, `${targetPhase}-stop`)}
+                disabled={loadingActions.has(`${targetPhase}-stop`)}
+                className="py-3 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                Stop
+              </button>
+              <button
+                onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: targetPhase }, `${targetPhase}-reset`)}
+                disabled={loadingActions.has(`${targetPhase}-reset`)}
+                className="py-3 px-4 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reset
+              </button>
+            </div>
+
+            {/* Time Adjustment Controls */}
+            <div className="grid grid-cols-2 gap-2 bg-white/40 p-1.5 rounded-xl border border-white/50">
+              <div className="grid grid-cols-3 gap-1">
+                <button 
+                  onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 1 }, `${targetPhase}-time-1`)} 
+                  className={`py-1 px-0.5 rounded-lg text-[9px] font-black border transition-all active:scale-[0.95] ${theme.btnTimeBg}`}
+                >
+                  +1m
+                </button>
+                <button 
+                  onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 5 }, `${targetPhase}-time-5`)} 
+                  className={`py-1 px-0.5 rounded-lg text-[9px] font-black border transition-all active:scale-[0.95] ${theme.btnTimeBg}`}
+                >
+                  +5m
+                </button>
+                <button 
+                  onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 10 }, `${targetPhase}-time-10`)} 
+                  className={`py-1 px-0.5 rounded-lg text-[9px] font-black border transition-all active:scale-[0.95] ${theme.btnTimeBg}`}
+                >
+                  +10m
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                <button 
+                  onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -1 }, `${targetPhase}-time-neg1`)} 
+                  className={`py-1 px-0.5 rounded-lg text-[9px] font-black border transition-all active:scale-[0.95] ${theme.btnTimeBg}`}
+                >
+                  -1m
+                </button>
+                <button 
+                  onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -5 }, `${targetPhase}-time-neg5`)} 
+                  className={`py-1 px-0.5 rounded-lg text-[9px] font-black border transition-all active:scale-[0.95] ${theme.btnTimeBg}`}
+                >
+                  -5m
+                </button>
+                <button 
+                  onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -10 }, `${targetPhase}-time-neg10`)} 
+                  className={`py-1 px-0.5 rounded-lg text-[9px] font-black border transition-all active:scale-[0.95] ${theme.btnTimeBg}`}
+                >
+                  -10m
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
-        {/* Start Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <ControlButton 
-            icon={<span className="text-xl">☀️</span>} 
-            label="Start Morning" 
-            loading={loadingActions.has('m-start')}
-            onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'morning' }, 'm-start')} 
-            bg="bg-amber-50"
-            border="border-amber-100"
-            className="h-16 rounded-xl"
-          />
-          <ControlButton 
-            icon={<span className="text-xl">🌙</span>} 
-            label="Start Evening" 
-            loading={loadingActions.has('e-start')}
-            onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: 'evening' }, 'e-start')} 
-            bg="bg-indigo-50"
-            border="border-indigo-100"
-            className="h-16 rounded-xl"
-          />
-        </div>
+        {/* Whining Button */}
+        <button
+          onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: targetPhase, lockedFromUI: true }, `${targetPhase}-whine`)}
+          disabled={loadingActions.has(`${targetPhase}-whine`)}
+          className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-300 active:scale-[0.98] border ${
+            mission.whiningDetected 
+              ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-600 shadow-md shadow-red-100 animate-pulse font-extrabold' 
+              : 'bg-white hover:bg-slate-50 border-slate-200 text-red-700'
+          }`}
+        >
+          <span className="mr-1.5">{mission.whiningDetected ? '😠' : '😤'}</span>
+          {mission.whiningDetected ? 'Whining Active (-1 Star)' : 'Whining?'}
+        </button>
+      </div>
 
-        {/* Time Adjustments (Shared — target active mission) */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid grid-cols-3 gap-1.5">
-            <ControlButton icon={<span className="text-[10px] font-bold">+1m</span>} label="" disabled={!isActive} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 1 }, 'm-time-1')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">+5m</span>} label="" disabled={!isActive} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 5 }, 'm-time-5')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">+10m</span>} label="" disabled={!isActive} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: 10 }, 'm-time-10')} bg="bg-amber-50/50" className="h-10 rounded-lg !p-0" />
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <ControlButton icon={<span className="text-[10px] font-bold">-1m</span>} label="" disabled={!isActive} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -1 }, 'e-time-1')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">-5m</span>} label="" disabled={!isActive} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -5 }, 'e-time-5')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
-            <ControlButton icon={<span className="text-[10px] font-bold">-10m</span>} label="" disabled={!isActive} onClick={() => dispatchAction({ type: 'ADJUST_MISSION_END', missionPhase: targetPhase, deltaMinutes: -10 }, 'e-time-10')} bg="bg-indigo-50/50" className="h-10 rounded-lg !p-0" />
-          </div>
-        </div>
+      {/* Task Checklist Header */}
+      {tasksTotal > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-200/30">
+          <button 
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center justify-between w-full text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            <span className="text-[9px] font-black uppercase tracking-wider">
+              Task Checklist
+            </span>
+            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
 
-        {/* Shared Action Buttons */}
-        <div className="grid grid-cols-3 gap-3">
-          <ControlButton 
-            icon={<span className="text-xl">⏹️</span>} 
-            label="Stop" 
-            disabled={!isActive}
-            loading={loadingActions.has('shared-stop')}
-            onClick={() => dispatchAction({ type: 'CANCEL_MISSION', missionPhase: targetPhase }, 'shared-stop')} 
-            bg="bg-slate-100"
-            className="h-16 rounded-xl"
-          />
-          <ControlButton 
-            icon={<span className="text-xl">🔄</span>} 
-            label="Reset" 
-            disabled={!isActive}
-            loading={loadingActions.has('shared-reset')}
-            onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: targetPhase }, 'shared-reset')} 
-            bg="bg-slate-100"
-            className="h-16 rounded-xl"
-          />
-          <ControlButton 
-            icon={<span className="text-xl">{whiningDetected ? '😠' : '😱'}</span>} 
-            label={whiningDetected ? 'Whining Active' : 'Whine'} 
-            disabled={!isActive}
-            loading={loadingActions.has('shared-whine')}
-            onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: targetPhase, lockedFromUI: true }, 'shared-whine')} 
-            bg={whiningDetected ? 'bg-rose-500 text-white animate-pulse' : 'bg-red-50 text-red-700'}
-            border={whiningDetected ? 'border-rose-600' : 'border-red-100'}
-            className="h-16 rounded-xl font-black"
-          />
-        </div>
-
-        {/* Task Checklist */}
-        {isActive && missionTasks && missionTasks.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-3 pl-1">Tasks Checklist</div>
-            <div className="flex flex-col gap-2">
-              {missionTasks.map((task) => (
+          {/* Checklist list */}
+          {expanded && (
+            <div className="flex flex-col gap-2 mt-2">
+              {mission.tasks.map((task) => (
                 <button
                   key={task.id}
                   onClick={() => !task.locked && dispatchAction({ type: 'COMPLETE_TASK', missionPhase: targetPhase, taskId: task.id }, `task-${task.id}`)}
-                  className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all active:scale-[0.98] ${
+                  className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all active:scale-[0.98] ${
                     task.completed 
-                      ? 'bg-emerald-50/60 border-emerald-200 text-emerald-800' 
+                      ? 'bg-emerald-50/60 border-emerald-200 text-emerald-800 shadow-sm' 
                       : task.locked 
                       ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed opacity-60' 
-                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 shadow-sm'
                   }`}
                   disabled={task.locked}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg leading-none">{getTaskIcon(task.icon)}</span>
-                    <span className={`text-sm font-bold ${task.completed ? 'line-through opacity-60' : ''}`}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base leading-none">{getTaskIcon(task.icon)}</span>
+                    <span className={`text-xs font-bold ${task.completed ? 'line-through opacity-60' : ''}`}>
                       {task.label}
                     </span>
                   </div>
-                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
+                  <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all ${
                     task.completed 
                       ? 'bg-emerald-500 border-emerald-600 text-white' 
-                      : 'border-slate-300'
+                      : 'border-slate-300 bg-slate-50'
                   }`}>
-                    {task.completed && <span className="text-[10px] font-black">✓</span>}
+                    {task.completed && <span className="text-[9px] font-black">✓</span>}
                   </div>
                 </button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
+export function MissionsSection({
+  activeMission,
+  missionStartedAt,
+  missionDurationMins,
+  whiningDetected,
+  missionTasks,
+  missions,
+  loadingActions,
+  dispatchAction,
+}: MissionsSectionProps) {
+  
+  // Find detailed missions or build fallbacks
+  const morningMissionData = missions?.find(m => m.phase === 'morning') ?? {
+    phase: 'morning' as const,
+    active: activeMission === 'morning',
+    startedAt: activeMission === 'morning' ? missionStartedAt : null,
+    durationMins: activeMission === 'morning' ? missionDurationMins : null,
+    whiningDetected: activeMission === 'morning' ? !!whiningDetected : false,
+    tasks: activeMission === 'morning' ? (missionTasks ?? []) : [],
+  };
+
+  const eveningMissionData = missions?.find(m => m.phase === 'evening') ?? {
+    phase: 'evening' as const,
+    active: activeMission === 'evening',
+    startedAt: activeMission === 'evening' ? missionStartedAt : null,
+    durationMins: activeMission === 'evening' ? missionDurationMins : null,
+    whiningDetected: activeMission === 'evening' ? !!whiningDetected : false,
+    tasks: activeMission === 'evening' ? (missionTasks ?? []) : [],
+  };
+
+  const morningCountdown = useCountdown(morningMissionData.startedAt, morningMissionData.durationMins);
+  const eveningCountdown = useCountdown(eveningMissionData.startedAt, eveningMissionData.durationMins);
+
+  return (
+    <Section title="Missions">
+      <div className="flex flex-col gap-4">
+        <MissionCard
+          mission={morningMissionData}
+          countdown={morningCountdown}
+          loadingActions={loadingActions}
+          dispatchAction={dispatchAction}
+        />
+        <MissionCard
+          mission={eveningMissionData}
+          countdown={eveningCountdown}
+          loadingActions={loadingActions}
+          dispatchAction={dispatchAction}
+        />
       </div>
     </Section>
   );

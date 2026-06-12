@@ -43,3 +43,18 @@ export interface BroadcastPayload {
   timestamp: number;
   action: RemoteAction;
 }
+
+export interface RemoteMission {
+  phase: 'morning' | 'evening';
+  active: boolean;
+  startedAt?: string | null;
+  durationMins?: number | null;
+  whiningDetected: boolean;
+  tasks: Array<{
+    id: string;
+    label: string;
+    icon: string;
+    completed: boolean;
+    locked: boolean;
+  }>;
+}
