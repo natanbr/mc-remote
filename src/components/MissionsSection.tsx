@@ -276,7 +276,7 @@ function MissionCard({ mission, countdown, completedToday, loadingActions, dispa
       </div>
 
       {/* Task Checklist Header */}
-      {tasksTotal > 0 && (
+      {isActive && tasksTotal > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-200/30">
           <button 
             onClick={() => setExpanded(!expanded)}
