@@ -23,6 +23,18 @@ const ICON_MAP: Record<string, string> = {
 
 const getTaskIcon = (name: string) => ICON_MAP[name] ?? (name.match(/^[A-Za-z]+$/) ? '⭐' : name);
 
+function formatStartsAt(timeStr: string): string {
+  if (!timeStr) return '';
+  const [hStr, mStr] = timeStr.split(':');
+  const h = parseInt(hStr, 10);
+  if (isNaN(h)) return timeStr;
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const m = parseInt(mStr, 10);
+  const mFormatted = m === 0 ? '' : `:${mStr}`;
+  return `${h12}${mFormatted}${ampm}`;
+}
+
 interface MissionsSectionProps {
   activeMission?: 'morning' | 'evening' | 'none';
   missionStartedAt?: string | null;
@@ -30,6 +42,8 @@ interface MissionsSectionProps {
   whiningDetected?: boolean;
   missionTasks?: Array<{ id: string; label: string; icon: string; completed: boolean; locked: boolean }>;
   missions?: RemoteMission[];
+  lastCompletedOrFailedMorningDate?: string | null;
+  lastCompletedOrFailedEveningDate?: string | null;
   loadingActions: Set<string>;
   dispatchAction: (action: RemoteAction, actionId: string) => void;
 }
@@ -75,17 +89,19 @@ interface MissionCardProps {
   mission: {
     phase: 'morning' | 'evening';
     active: boolean;
+    startsAt: string;
     startedAt?: string | null;
     durationMins?: number | null;
     whiningDetected: boolean;
     tasks: Array<{ id: string; label: string; icon: string; completed: boolean; locked: boolean }>;
   };
   countdown: string | null;
+  completedToday: boolean;
   loadingActions: Set<string>;
   dispatchAction: (action: RemoteAction, actionId: string) => void;
 }
 
-function MissionCard({ mission, countdown, loadingActions, dispatchAction }: MissionCardProps) {
+function MissionCard({ mission, countdown, completedToday, loadingActions, dispatchAction }: MissionCardProps) {
   const isMorning = mission.phase === 'morning';
   const isActive = mission.active;
   const targetPhase = mission.phase;
@@ -101,14 +117,12 @@ function MissionCard({ mission, countdown, loadingActions, dispatchAction }: Mis
 
   const tasksTotal = mission.tasks.length;
   const tasksDone = mission.tasks.filter(t => t.completed).length;
-  const progressPercent = tasksTotal > 0 ? (tasksDone / tasksTotal) * 100 : 0;
 
   // Set theme colors based on morning/evening phase
   const theme = isMorning
     ? {
         cardBg: 'bg-gradient-to-br from-amber-50 to-orange-100/50 border-amber-200/50 shadow-amber-100/10',
         titleColor: 'text-amber-800',
-        progressFill: 'bg-amber-500',
         btnStartBg: 'bg-amber-500 active:bg-amber-600 text-white',
         btnTimeBg: 'bg-amber-100/60 text-amber-800 hover:bg-amber-200/60 border-amber-200/30',
         accentColor: 'text-amber-600',
@@ -117,7 +131,6 @@ function MissionCard({ mission, countdown, loadingActions, dispatchAction }: Mis
     : {
         cardBg: 'bg-gradient-to-br from-indigo-50 to-purple-100/50 border-indigo-200/50 shadow-indigo-100/10',
         titleColor: 'text-indigo-800',
-        progressFill: 'bg-indigo-600',
         btnStartBg: 'bg-indigo-600 active:bg-indigo-700 text-white',
         btnTimeBg: 'bg-indigo-100/60 text-indigo-800 hover:bg-indigo-200/60 border-indigo-200/30',
         accentColor: 'text-indigo-600',
@@ -135,7 +148,7 @@ function MissionCard({ mission, countdown, loadingActions, dispatchAction }: Mis
           </span>
         </div>
 
-        {/* Status Badge & Countdown */}
+        {/* Status Badge, Countdown, and Scheduled Time */}
         {isActive ? (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
@@ -149,46 +162,36 @@ function MissionCard({ mission, countdown, loadingActions, dispatchAction }: Mis
             )}
           </div>
         ) : (
-          <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-200/40 px-2 py-0.5 rounded-full border border-slate-200/20">
-            Inactive
-          </span>
+          <div className="flex flex-col items-end gap-0.5">
+            {completedToday ? (
+              <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100/60 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                ✅ Done Today
+              </span>
+            ) : (
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-200/40 px-2 py-0.5 rounded-full border border-slate-200/20">
+                Inactive
+              </span>
+            )}
+            {mission.startsAt && (
+              <span className="text-[10px] font-extrabold text-slate-400 font-mono tracking-tight lowercase">
+                next: {formatStartsAt(mission.startsAt)}
+              </span>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Progress Bar */}
-      {tasksTotal > 0 && (
-        <div className="mb-4 bg-white/40 p-2.5 rounded-xl border border-white/50">
-          <div className="flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-tight mb-1.5">
-            <span>Progress</span>
-            <span>{tasksDone}/{tasksTotal} Done</span>
-          </div>
-          <div className="w-full bg-slate-200/60 rounded-full h-2 overflow-hidden border border-slate-200/20">
-            <div className={`h-full rounded-full transition-all duration-500 ${theme.progressFill}`} style={{ width: `${progressPercent}%` }}></div>
-          </div>
-        </div>
-      )}
 
       {/* Controls Grid */}
       <div className="flex flex-col gap-3">
         {!isActive ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: targetPhase }, `${targetPhase}-start`)}
-              disabled={loadingActions.has(`${targetPhase}-start`)}
-              className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all duration-200 active:scale-[0.98] ${theme.btnStartBg} flex items-center justify-center gap-2`}
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              Start Mission
-            </button>
-            <button
-              onClick={() => dispatchAction({ type: 'RESET_MISSION', missionPhase: targetPhase }, `${targetPhase}-reset`)}
-              disabled={loadingActions.has(`${targetPhase}-reset`)}
-              className="py-3 px-4 bg-white/80 hover:bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-xs transition-all duration-200 active:scale-[0.98]"
-              title="Reset Tasks"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            onClick={() => dispatchAction({ type: 'SET_ACTIVE_MISSION', phase: targetPhase }, `${targetPhase}-start`)}
+            disabled={loadingActions.has(`${targetPhase}-start`)}
+            className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider shadow-sm transition-all duration-200 active:scale-[0.98] ${theme.btnStartBg} flex items-center justify-center gap-2`}
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+            Start Mission
+          </button>
         ) : (
           <>
             {/* Active Control Actions */}
@@ -254,22 +257,22 @@ function MissionCard({ mission, countdown, loadingActions, dispatchAction }: Mis
                 </button>
               </div>
             </div>
+
+            {/* Whining Button */}
+            <button
+              onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: targetPhase, lockedFromUI: true }, `${targetPhase}-whine`)}
+              disabled={loadingActions.has(`${targetPhase}-whine`)}
+              className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-300 active:scale-[0.98] border ${
+                mission.whiningDetected 
+                  ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-600 shadow-md shadow-red-100 animate-pulse font-extrabold' 
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-red-700'
+              }`}
+            >
+              <span className="mr-1.5">{mission.whiningDetected ? '😠' : '😤'}</span>
+              {mission.whiningDetected ? 'Whining Active (-1 Star)' : 'Whining?'}
+            </button>
           </>
         )}
-
-        {/* Whining Button */}
-        <button
-          onClick={() => dispatchAction({ type: 'TOGGLE_WHINING', missionPhase: targetPhase, lockedFromUI: true }, `${targetPhase}-whine`)}
-          disabled={loadingActions.has(`${targetPhase}-whine`)}
-          className={`w-full py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-300 active:scale-[0.98] border ${
-            mission.whiningDetected 
-              ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-600 shadow-md shadow-red-100 animate-pulse font-extrabold' 
-              : 'bg-white hover:bg-slate-50 border-slate-200 text-red-700'
-          }`}
-        >
-          <span className="mr-1.5">{mission.whiningDetected ? '😠' : '😤'}</span>
-          {mission.whiningDetected ? 'Whining Active (-1 Star)' : 'Whining?'}
-        </button>
       </div>
 
       {/* Task Checklist Header */}
@@ -280,7 +283,7 @@ function MissionCard({ mission, countdown, loadingActions, dispatchAction }: Mis
             className="flex items-center justify-between w-full text-slate-500 hover:text-slate-800 transition-colors"
           >
             <span className="text-[9px] font-black uppercase tracking-wider">
-              Task Checklist
+              Task Checklist ({tasksDone}/{tasksTotal} done)
             </span>
             {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
@@ -331,6 +334,8 @@ export function MissionsSection({
   whiningDetected,
   missionTasks,
   missions,
+  lastCompletedOrFailedMorningDate,
+  lastCompletedOrFailedEveningDate,
   loadingActions,
   dispatchAction,
 }: MissionsSectionProps) {
@@ -339,6 +344,7 @@ export function MissionsSection({
   const morningMissionData = missions?.find(m => m.phase === 'morning') ?? {
     phase: 'morning' as const,
     active: activeMission === 'morning',
+    startsAt: '06:00',
     startedAt: activeMission === 'morning' ? missionStartedAt : null,
     durationMins: activeMission === 'morning' ? missionDurationMins : null,
     whiningDetected: activeMission === 'morning' ? !!whiningDetected : false,
@@ -348,6 +354,7 @@ export function MissionsSection({
   const eveningMissionData = missions?.find(m => m.phase === 'evening') ?? {
     phase: 'evening' as const,
     active: activeMission === 'evening',
+    startsAt: '19:00',
     startedAt: activeMission === 'evening' ? missionStartedAt : null,
     durationMins: activeMission === 'evening' ? missionDurationMins : null,
     whiningDetected: activeMission === 'evening' ? !!whiningDetected : false,
@@ -357,21 +364,34 @@ export function MissionsSection({
   const morningCountdown = useCountdown(morningMissionData.startedAt, morningMissionData.durationMins);
   const eveningCountdown = useCountdown(eveningMissionData.startedAt, eveningMissionData.durationMins);
 
+  // Compare completion dates with Swedish locale date (local timezone YYYY-MM-DD)
+  const todayStr = new Date().toLocaleDateString('sv');
+  const morningCompletedToday = lastCompletedOrFailedMorningDate === todayStr;
+  const eveningCompletedToday = lastCompletedOrFailedEveningDate === todayStr;
+
+  const isAnyActive = morningMissionData.active || eveningMissionData.active;
+
   return (
     <Section title="Missions">
       <div className="flex flex-col gap-4">
-        <MissionCard
-          mission={morningMissionData}
-          countdown={morningCountdown}
-          loadingActions={loadingActions}
-          dispatchAction={dispatchAction}
-        />
-        <MissionCard
-          mission={eveningMissionData}
-          countdown={eveningCountdown}
-          loadingActions={loadingActions}
-          dispatchAction={dispatchAction}
-        />
+        {(!isAnyActive || morningMissionData.active) && (
+          <MissionCard
+            mission={morningMissionData}
+            countdown={morningCountdown}
+            completedToday={morningCompletedToday}
+            loadingActions={loadingActions}
+            dispatchAction={dispatchAction}
+          />
+        )}
+        {(!isAnyActive || eveningMissionData.active) && (
+          <MissionCard
+            mission={eveningMissionData}
+            countdown={eveningCountdown}
+            completedToday={eveningCompletedToday}
+            loadingActions={loadingActions}
+            dispatchAction={dispatchAction}
+          />
+        )}
       </div>
     </Section>
   );

@@ -47,6 +47,7 @@ export interface BroadcastPayload {
 export interface RemoteMission {
   phase: 'morning' | 'evening';
   active: boolean;
+  startsAt: string;
   startedAt?: string | null;
   durationMins?: number | null;
   whiningDetected: boolean;

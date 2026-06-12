@@ -40,6 +40,8 @@ interface RemoteGameState {
   responsibilities?: Array<{ id: string; pointsEarned: number; pointsRequired: number }>;
   privileges?: PrivilegeCard[];
   missions?: RemoteMission[];
+  lastCompletedOrFailedMorningDate?: string | null;
+  lastCompletedOrFailedEveningDate?: string | null;
 }
 
 interface MainControllerProps {
@@ -138,6 +140,8 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
           whiningDetected={state?.whiningDetected}
           missionTasks={state?.missionTasks}
           missions={state?.missions}
+          lastCompletedOrFailedMorningDate={state?.lastCompletedOrFailedMorningDate}
+          lastCompletedOrFailedEveningDate={state?.lastCompletedOrFailedEveningDate}
           loadingActions={loadingActions}
           dispatchAction={dispatchAction}
         />
