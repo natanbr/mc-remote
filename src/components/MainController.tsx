@@ -4,6 +4,7 @@ import { ResponsibilitiesSection } from './ResponsibilitiesSection';
 import { MissionsSection } from './MissionsSection';
 import { PrivilegesSection } from './PrivilegesSection';
 import { ActivityLogsSection } from './ActivityLogsSection';
+import { MoodWindSection } from './MoodWindSection';
 import type { RemoteAction, PrivilegeCard, RemoteMission } from '../types';
 
 const REACTION_EMOJIS = [
@@ -22,6 +23,8 @@ const REACTION_EMOJIS = [
 interface RemoteGameState {
   bankCount?: number;
   gameTokens?: number;
+  moodWind?: number;
+  behaviorProgress?: number;
   activeMission?: 'morning' | 'evening' | 'none';
   missionStartedAt?: string | null;
   missionDurationMins?: number | null;
@@ -149,7 +152,15 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
 
       {/* Right Column */}
       <div className="flex flex-col gap-8 w-full max-w-md md:max-w-none mx-auto">
-        {/* 3. TOKEN MANAGEMENT: BANK TOKENS */}
+        {/* MOOD WIND */}
+        <MoodWindSection
+          currentLevel={state?.moodWind}
+          behaviorProgress={state?.behaviorProgress}
+          loadingActions={loadingActions}
+          dispatchAction={dispatchAction}
+        />
+
+        {/* BANK TOKENS */}
         <Section 
           title={
             <div className="flex items-center justify-between w-full">
