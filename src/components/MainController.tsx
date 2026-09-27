@@ -5,6 +5,7 @@ import { MissionsSection } from './MissionsSection';
 import { PrivilegesSection } from './PrivilegesSection';
 import { ActivityLogsSection } from './ActivityLogsSection';
 import { MoodWindSection } from './MoodWindSection';
+import { ShieldSection } from './ShieldSection';
 import type { RemoteAction, PrivilegeCard, RemoteMission } from '../types';
 
 const REACTION_EMOJIS = [
@@ -25,6 +26,7 @@ interface RemoteGameState {
   gameTokens?: number;
   moodWind?: number;
   behaviorProgress?: number;
+  missedMissionStreak?: number;
   activeMission?: 'morning' | 'evening' | 'none';
   missionStartedAt?: string | null;
   missionDurationMins?: number | null;
@@ -156,6 +158,13 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
         <MoodWindSection
           currentLevel={state?.moodWind}
           behaviorProgress={state?.behaviorProgress}
+          loadingActions={loadingActions}
+          dispatchAction={dispatchAction}
+        />
+
+        {/* SHIELD */}
+        <ShieldSection
+          missedMissionStreak={state?.missedMissionStreak}
           loadingActions={loadingActions}
           dispatchAction={dispatchAction}
         />
