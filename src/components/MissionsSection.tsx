@@ -107,13 +107,14 @@ function MissionCard({ mission, countdown, completedToday, loadingActions, dispa
   const targetPhase = mission.phase;
 
   const [expanded, setExpanded] = useState(isActive);
+  const [wasActive, setWasActive] = useState(isActive);
 
-  // Auto-expand card if the mission becomes active
-  useEffect(() => {
-    if (isActive) {
-      setExpanded(true);
-    }
-  }, [isActive]);
+  // Auto-expand card if the mission becomes active (adjusted during render,
+  // not in an effect, so there is no extra collapsed frame)
+  if (isActive !== wasActive) {
+    setWasActive(isActive);
+    if (isActive) setExpanded(true);
+  }
 
   const tasksTotal = mission.tasks.length;
   const tasksDone = mission.tasks.filter(t => t.completed).length;
