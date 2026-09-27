@@ -23,6 +23,7 @@ export type ActionType =
   | 'SET_PRIVILEGE_STATUS'
   | 'SET_MOOD_WIND'
   | 'ADJUST_BEHAVIOR_PROGRESS'
+  | 'ADJUST_SHIELD'
   | 'SNAKE_DIR'
   | 'COMPLETE_TASK';
 
