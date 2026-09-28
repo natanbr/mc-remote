@@ -46,7 +46,7 @@ function fakeChannel(roomId: string, options: { closeSynchronously?: boolean } =
 }
 type FakeChannel = ReturnType<typeof fakeChannel>;
 
-function harness(options: { canConnect?: boolean; closeSynchronously?: boolean } = {}) {
+function harness(options: { canConnect?: boolean; closeSynchronously?: boolean; now?: () => number } = {}) {
   const channels: FakeChannel[] = [];
   const statuses: ConnectionStatus[] = [];
   const hints: (ConnectionHint | null)[] = [];
@@ -81,7 +81,7 @@ function harness(options: { canConnect?: boolean; closeSynchronously?: boolean }
       },
       clear: (id) => void timers.delete(id),
     },
-    now: () => NOW,
+    now: options.now ?? (() => NOW),
     log: {
       warn: (...args: unknown[]) => void logs.push(['warn', ...args]),
       error: (...args: unknown[]) => void logs.push(['error', ...args]),
@@ -291,4 +291,43 @@ test('cancelling the hint timer (unmount) stops the wait and leaves the connecti
   assert.equal(h.timers.size, 0);
   h.channels[0].status('SUBSCRIBED');
   assert.equal(h.timers.size, 1);
+});
+
+test('replacing a joined connection cancels its "not answering" wait (new link or Reconnect)', () => {
+  // Without the cancel, A's timer fires after the switch and shows a false banner.
+  for (const replace of [
+    (h: ReturnType<typeof harness>) => h.connection.applyPairing(PAIR_B),
+    (h: ReturnType<typeof harness>) => h.connection.reconnect(),
+  ]) {
+    const h = harness();
+    h.connection.applyPairing(PAIR_A);
+    h.channels[0].status('SUBSCRIBED');
+    assert.equal(h.timers.size, 1, 'A is waiting for an answer');
+    replace(h);
+    assert.equal(h.timers.size, 0, "the replaced connection's wait is cancelled");
+    assert.ok(!h.hints.includes('not-answering'));
+  }
+});
+
+// An Error's cause can quote the raw server reply (channel topic, so the full room id): whatever
+// fails, the log gets text only. Catches `messageOf(e)` being replaced by `e` in either catch.
+test('a failed sync request and a failed state verification log text, never an error object', async () => {
+  const empty: Pairing = { ...PAIR_A, secretKey: '' }; // WebCrypto refuses a zero-length HMAC key
+  const sync = harness();
+  sync.connection.applyPairing(empty);
+  sync.channels[0].status('SUBSCRIBED');
+  await sync.flushSends();
+
+  const verify = harness({ now: () => { throw new Error(`clock failed near remote-control:${ROOM_A}`); } });
+  verify.connection.applyPairing(PAIR_A);
+  verify.channels[0].status('SUBSCRIBED');
+  await verify.channels[0].deliver(await signedState(PAIR_A));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const logged = [...sync.logs, ...verify.logs];
+  assert.ok(logged.some((entry) => entry[1] === '[Remote] Sync request failed:'), 'the sync failure is logged');
+  assert.ok(logged.some((entry) => entry[1] === '[Remote] Could not verify a state update:'), 'the verify failure is logged');
+  for (const entry of logged) {
+    for (const arg of entry) assert.equal(typeof arg, 'string', `logged a non-string: ${String(arg)}`);
+  }
 });
