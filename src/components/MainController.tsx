@@ -6,6 +6,7 @@ import { PrivilegesSection } from './PrivilegesSection';
 import { ActivityLogsSection } from './ActivityLogsSection';
 import { MoodWindSection } from './MoodWindSection';
 import { ShieldSection } from './ShieldSection';
+import { shieldSegmentsLeft } from '../shield';
 import type { RemoteAction, PrivilegeCard, RemoteMission } from '../types';
 
 const REACTION_EMOJIS = [
@@ -41,6 +42,7 @@ interface RemoteGameState {
     type: string;
     colorKey?: string;
     isRemote?: boolean;
+    source?: string;
   }>;
   responsibilities?: Array<{ id: string; pointsEarned: number; pointsRequired: number }>;
   privileges?: PrivilegeCard[];
@@ -59,6 +61,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
   const state = gameState as RemoteGameState | null;
   const recycling = state?.responsibilities?.find((r) => r.id === 'recycling');
   const activity = state?.responsibilities?.find((r) => r.id === 'activity');
+  const shieldBroken = shieldSegmentsLeft(state?.missedMissionStreak) === 0;
 
   return (
     <main className="p-5 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
@@ -230,6 +233,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
           gameTokens={state?.gameTokens}
           recycling={recycling}
           activity={activity}
+          pointsLocked={shieldBroken}
           loadingActions={loadingActions}
           dispatchAction={dispatchAction}
         />
