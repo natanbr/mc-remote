@@ -1,43 +1,57 @@
-import { markUpgradedToV2, type PairingStorage, type ProtocolMode } from './pairing.ts';
+import type { ProtocolMode } from './pairing.ts';
 import { classifyStateUpdate, decideStateUpdate } from './remoteProtocol.ts';
 
-/** The hook's refs and setters, injected so the wiring is testable without React. */
+/** The hook's refs and callbacks, injected so the wiring is testable without React. */
 export interface StateUpdateReceiverDeps {
   getSecretKey: () => string | null;
   isCurrentChannel: () => boolean;
   getMode: () => ProtocolMode;
-  setMode: (mode: ProtocolMode) => void;
   getLast: () => number;
   setLast: (timestamp: number) => void;
   onState: (state: Record<string, unknown>) => void;
-  storage: PairingStorage;
+  /** A verified, newer state was refused only because the clocks differ; at most once per join. */
+  onClockSkew: (diffMs: number) => void;
   now: () => number;
 }
 
-/**
- * Handles incoming `state-update` payloads. Create one per connection: creating it resets the last
- * accepted timestamp, so Reconnect recovers from a desktop clock that was corrected backwards
- * (the clock bound in decideStateUpdate still limits a replay to recent states).
- */
-export function createStateUpdateReceiver(deps: StateUpdateReceiverDeps): (payload: unknown) => Promise<void> {
-  deps.setLast(0);
+export interface StateUpdateReceiver {
+  receive: (payload: unknown) => Promise<void>;
+  /**
+   * Call on every SUBSCRIBED, an automatic rejoin included: resets the last accepted timestamp
+   * (so a desktop clock set backwards cannot freeze the view; the clock bound in
+   * decideStateUpdate still limits a replay to recent states) and re-arms the skew report.
+   */
+  connected: () => void;
+}
 
-  return async (payload) => {
+export function createStateUpdateReceiver(deps: StateUpdateReceiverDeps): StateUpdateReceiver {
+  let clockSkewReported = false;
+
+  const receive = async (payload: unknown) => {
     const secretKey = deps.getSecretKey();
     if (!secretKey) return;
 
-    // The mode only ever moves legacy -> v2, so reading it here can only let a legacy candidate
-    // through that the decision below (which reads the mode again, after the await) rejects.
-    const candidate = await classifyStateUpdate(payload, secretKey, deps.getMode() === 'legacy');
+    const candidate = await classifyStateUpdate(payload, secretKey, deps.getMode());
     if (!deps.isCurrentChannel()) return; // reconnected while this was verifying
+    if (deps.getSecretKey() !== secretKey) return; // re-paired in this tab while this was verifying
 
+    // Read the mode and the last timestamp now, after the await, not before it.
     const decision = decideStateUpdate(candidate, deps.getMode(), deps.getLast(), deps.now());
-    if (!decision.accept) return;
+    if (!decision.accept) {
+      if (decision.clockSkewMs !== undefined && !clockSkewReported) {
+        clockSkewReported = true;
+        deps.onClockSkew(decision.clockSkewMs);
+      }
+      return;
+    }
     if (decision.acceptedTimestamp !== null) deps.setLast(decision.acceptedTimestamp);
     deps.onState(decision.state);
-    if (decision.upgradeToV2) {
-      deps.setMode('v2');
-      markUpgradedToV2(deps.storage);
-    }
   };
+
+  const connected = () => {
+    deps.setLast(0);
+    clockSkewReported = false;
+  };
+
+  return { receive, connected };
 }

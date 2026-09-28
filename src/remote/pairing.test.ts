@@ -1,10 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as pairingModule from './pairing.ts';
 import {
-  markUpgradedToV2,
+  pairingToApply,
   parsePairingParams,
+  redactRoomId,
   resolvePairing,
   urlCarriesPairingParams,
+  type Pairing,
   type PairingStorage,
 } from './pairing.ts';
 
@@ -19,23 +22,28 @@ function fakeStorage(initial: Record<string, string> = {}): PairingStorage & { d
 }
 
 const url = (hash = '', search = '') => ({ hash, search });
+const ok = (roomId: string, secretKey: string, mode: Pairing['mode']) => ({ status: 'ok', pairing: { roomId, secretKey, mode } });
 
-test('parse reads the pairing from the fragment and carries v=2', () => {
-  assert.deepEqual(parsePairingParams(url('#room=R1&key=K1&v=2')), { roomId: 'R1', secretKey: 'K1', mode: 'v2' });
+// --- parsing -----------------------------------------------------------------------------
+
+test('a fragment pairing is v2 whether v is absent or exactly "2"', () => {
+  assert.deepEqual(parsePairingParams(url('#room=R1&key=K1&v=2')), ok('R1', 'K1', 'v2'));
+  assert.deepEqual(parsePairingParams(url('#room=R1&key=K1')), ok('R1', 'K1', 'v2'), 'only v2 desktops write the fragment');
 });
 
-test('parse treats a fragment without v=2 as legacy', () => {
-  assert.deepEqual(parsePairingParams(url('#room=R1&key=K1')), { roomId: 'R1', secretKey: 'K1', mode: 'legacy' });
-  assert.deepEqual(parsePairingParams(url('#room=R1&key=K1&v=1')), { roomId: 'R1', secretKey: 'K1', mode: 'legacy' });
+test('a fragment pairing with any other v is refused', () => {
+  for (const v of ['2?utm=x', '3', '1', '']) {
+    assert.deepEqual(parsePairingParams(url(`#room=R1&key=K1&v=${v}`)), { status: 'refused' }, `v=${v}`);
+  }
 });
 
-test('parse falls back to the query string (old QR codes)', () => {
-  assert.deepEqual(parsePairingParams(url('', '?room=R2&key=K2')), { roomId: 'R2', secretKey: 'K2', mode: 'legacy' });
-  assert.deepEqual(parsePairingParams(url('', '?room=R2&key=K2&v=2')), { roomId: 'R2', secretKey: 'K2', mode: 'v2' });
+test('a query-string pairing (old QR codes) is always legacy, whatever v says', () => {
+  assert.deepEqual(parsePairingParams(url('', '?room=R2&key=K2')), ok('R2', 'K2', 'legacy'));
+  assert.deepEqual(parsePairingParams(url('', '?room=R2&key=K2&v=2')), ok('R2', 'K2', 'legacy'));
 });
 
 test('parse prefers the fragment over the query string', () => {
-  assert.deepEqual(parsePairingParams(url('#room=F&key=FK&v=2', '?room=Q&key=QK')), { roomId: 'F', secretKey: 'FK', mode: 'v2' });
+  assert.deepEqual(parsePairingParams(url('#room=F&key=FK&v=2', '?room=Q&key=QK')), ok('F', 'FK', 'v2'));
 });
 
 test('parse returns nothing when room or key is missing', () => {
@@ -49,7 +57,7 @@ test('parse returns nothing when room or key is missing', () => {
     ['#room=R&key=', ''],
     ['#', '?'],
   ]) {
-    assert.equal(parsePairingParams(url(hash, search)), null, `hash ${hash} search ${search}`);
+    assert.deepEqual(parsePairingParams(url(hash, search)), { status: 'absent' }, `hash ${hash} search ${search}`);
   }
 });
 
@@ -62,36 +70,60 @@ test('the URL is flagged for wiping whenever it carries a room or a key, in eith
   assert.equal(urlCarriesPairingParams(url('#top', '?utm_source=x')), false);
 });
 
+// --- resolving against storage -----------------------------------------------------------
+
 test('a v2 pairing from the URL is stored with mc_proto = "2"', () => {
   const storage = fakeStorage();
   const result = resolvePairing(url('#room=R&key=K&v=2'), storage);
-  assert.deepEqual(result, { pairing: { roomId: 'R', secretKey: 'K', mode: 'v2' }, scrubUrl: true });
+  assert.deepEqual(result, { pairing: { roomId: 'R', secretKey: 'K', mode: 'v2' }, scrubUrl: true, warning: null });
   assert.deepEqual(Object.fromEntries(storage.data), { mc_room: 'R', mc_key: 'K', mc_proto: '2' });
 });
 
-test('a legacy pairing from the URL replaces the old pairing and clears mc_proto', () => {
-  const storage = fakeStorage({ mc_room: 'OLD', mc_key: 'OLDK', mc_proto: '2' });
+test('a refused fragment pairing is not stored, is wiped, and warns without the key', () => {
+  const storage = fakeStorage({ mc_room: 'R', mc_key: 'K', mc_proto: '2' });
+  const result = resolvePairing(url('#room=NEWROOM&key=DISTINCTIVEKEY&v=3'), storage);
+  assert.deepEqual(result.pairing, { roomId: 'R', secretKey: 'K', mode: 'v2' }, 'the stored pairing stays');
+  assert.equal(result.scrubUrl, true);
+  assert.equal(typeof result.warning, 'string');
+  assert.ok(!result.warning?.includes('DISTINCTIVEKEY') && !result.warning?.includes('NEWROOM'));
+  assert.deepEqual(Object.fromEntries(storage.data), { mc_room: 'R', mc_key: 'K', mc_proto: '2' });
+});
+
+test('a legacy link replaces a stored legacy pairing', () => {
+  const storage = fakeStorage({ mc_room: 'OLD', mc_key: 'OLDK' });
   const result = resolvePairing(url('', '?room=R&key=K'), storage);
-  assert.deepEqual(result, { pairing: { roomId: 'R', secretKey: 'K', mode: 'legacy' }, scrubUrl: true });
+  assert.deepEqual(result, { pairing: { roomId: 'R', secretKey: 'K', mode: 'legacy' }, scrubUrl: true, warning: null });
   assert.deepEqual(Object.fromEntries(storage.data), { mc_room: 'R', mc_key: 'K' });
+});
+
+test('a legacy link never replaces a stored v2 pairing (a saved old link must not undo the re-scan)', () => {
+  const storage = fakeStorage({ mc_room: 'V2ROOM', mc_key: 'V2KEY', mc_proto: '2' });
+  const result = resolvePairing(url('', '?room=OLDROOM&key=OLDKEY'), storage);
+  assert.deepEqual(result.pairing, { roomId: 'V2ROOM', secretKey: 'V2KEY', mode: 'v2' });
+  assert.equal(result.scrubUrl, true);
+  assert.equal(typeof result.warning, 'string');
+  assert.ok(!result.warning?.includes('OLDKEY'));
+  assert.deepEqual(Object.fromEntries(storage.data), { mc_room: 'V2ROOM', mc_key: 'V2KEY', mc_proto: '2' });
 });
 
 test('without a URL pairing the stored pairing and mode are used', () => {
   assert.deepEqual(resolvePairing(url(), fakeStorage({ mc_room: 'R', mc_key: 'K', mc_proto: '2' })), {
     pairing: { roomId: 'R', secretKey: 'K', mode: 'v2' },
     scrubUrl: false,
+    warning: null,
   });
   assert.deepEqual(resolvePairing(url(), fakeStorage({ mc_room: 'R', mc_key: 'K' })), {
     pairing: { roomId: 'R', secretKey: 'K', mode: 'legacy' },
     scrubUrl: false,
+    warning: null,
   });
   assert.equal(resolvePairing(url(), fakeStorage({ mc_room: 'R', mc_key: 'K', mc_proto: 'v2' })).pairing?.mode, 'legacy',
     'only the exact value "2" means v2');
 });
 
 test('nothing stored and nothing in the URL means not paired', () => {
-  assert.deepEqual(resolvePairing(url(), fakeStorage()), { pairing: null, scrubUrl: false });
-  assert.deepEqual(resolvePairing(url(), fakeStorage({ mc_room: 'R' })), { pairing: null, scrubUrl: false });
+  assert.deepEqual(resolvePairing(url(), fakeStorage()), { pairing: null, scrubUrl: false, warning: null });
+  assert.deepEqual(resolvePairing(url(), fakeStorage({ mc_room: 'R' })), { pairing: null, scrubUrl: false, warning: null });
 });
 
 test('a truncated pairing link is wiped and does not replace the stored pairing', () => {
@@ -99,13 +131,41 @@ test('a truncated pairing link is wiped and does not replace the stored pairing'
   assert.deepEqual(resolvePairing(url('#key=LEAKED'), storage), {
     pairing: { roomId: 'R', secretKey: 'K', mode: 'v2' },
     scrubUrl: true,
+    warning: null,
   });
   assert.equal(storage.data.get('mc_key'), 'K');
 });
 
-test('the auto-upgrade persists v2 mode', () => {
-  const storage = fakeStorage({ mc_room: 'R', mc_key: 'K' });
-  markUpgradedToV2(storage);
-  assert.equal(storage.data.get('mc_proto'), '2');
-  assert.equal(resolvePairing(url(), storage).pairing?.mode, 'v2');
+test('the mode comes only from the pairing link: there is no automatic upgrade', () => {
+  assert.equal('markUpgradedToV2' in pairingModule, false);
+});
+
+// --- same-tab re-pairing (hashchange) ----------------------------------------------------
+
+test('a changed pairing is applied: connect to its room', () => {
+  const current = { roomId: 'A', secretKey: 'KA', mode: 'v2' } as const;
+  const next = { roomId: 'B', secretKey: 'KB', mode: 'v2' } as const;
+  assert.deepEqual(pairingToApply(current, next), next);
+  assert.deepEqual(pairingToApply(null, next), next, 'first pairing on mount');
+  assert.deepEqual(pairingToApply(current, { ...current, secretKey: 'K2' }), { ...current, secretKey: 'K2' });
+  assert.deepEqual(pairingToApply(current, { ...current, mode: 'legacy' }), { ...current, mode: 'legacy' });
+});
+
+test('an unchanged or missing pairing is not re-applied (no reconnect)', () => {
+  const current = { roomId: 'A', secretKey: 'KA', mode: 'v2' } as const;
+  assert.equal(pairingToApply(current, { ...current }), null);
+  assert.equal(pairingToApply(current, null), null);
+  assert.equal(pairingToApply(null, null), null);
+});
+
+// --- logging -----------------------------------------------------------------------------
+
+test('redactRoomId shortens every occurrence of the room id to its first 8 characters', () => {
+  const room = '0123456789abcdef-room';
+  assert.equal(
+    redactRoomId(`join failed: remote-control:${room}, topic remote-control:${room}`, room),
+    'join failed: remote-control:01234567…, topic remote-control:01234567…',
+  );
+  assert.equal(redactRoomId('socket closed: 1000', room), 'socket closed: 1000');
+  assert.equal(redactRoomId('unchanged', ''), 'unchanged', 'an empty room id must not split the message');
 });
