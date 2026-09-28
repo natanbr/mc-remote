@@ -2,15 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import type { ConnectionStatus, RemoteConfig, RemoteAction, BroadcastPayload } from '../types';
 import { hasWebCrypto } from '../remote/remoteAuth';
-import { markUpgradedToV2, resolvePairing, type ProtocolMode } from '../remote/pairing';
-import {
-  buildActionPayload,
-  buildSyncRequests,
-  classifyStateUpdate,
-  createSerialQueue,
-  decideStateUpdate,
-  newActionContent,
-} from '../remote/remoteProtocol';
+import { resolvePairing, type ProtocolMode } from '../remote/pairing';
+import { buildActionPayload, buildSyncRequests, createSerialQueue, newActionContent } from '../remote/remoteProtocol';
+import { createStateUpdateReceiver } from '../remote/stateUpdateReceiver';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -30,6 +24,11 @@ function sendBroadcast(ch: RealtimeChannel, payload: BroadcastPayload) {
   return ch.send({ type: 'broadcast', event: 'action', payload });
 }
 
+// Log the message only: an Error's cause can quote the raw server reply, channel topic (room id) included.
+function messageOf(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 export function useRemoteControl() {
   const [config, setConfig] = useState<RemoteConfig | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('offline');
@@ -40,7 +39,7 @@ export function useRemoteControl() {
   const [gameState, setGameState] = useState<Record<string, unknown> | null>(null);
   const secretKeyRef = useRef<string | null>(null);
   const modeRef = useRef<ProtocolMode>('legacy');
-  // Newest signed state accepted so far. In memory, and reset whenever a pairing is applied.
+  // Newest signed state accepted on this connection; the receiver resets it on every (re)connect.
   const lastStateTimestampRef = useRef(0);
 
   const showFeedback = useCallback((msg: string) => {
@@ -76,28 +75,25 @@ export function useRemoteControl() {
       }
     });
 
+    const receiveStateUpdate = createStateUpdateReceiver({
+      getSecretKey: () => secretKeyRef.current,
+      isCurrentChannel: () => channelRef.current === ch,
+      getMode: () => modeRef.current,
+      setMode: (mode) => { modeRef.current = mode; },
+      getLast: () => lastStateTimestampRef.current,
+      setLast: (timestamp) => { lastStateTimestampRef.current = timestamp; },
+      onState: setGameState,
+      storage: localStorage,
+      now: Date.now,
+    });
     ch.on('broadcast', { event: 'state-update' }, ({ payload }) => {
-      const secretKey = secretKeyRef.current;
-      if (!secretKey) return;
-      classifyStateUpdate(payload, secretKey)
-        .then((candidate) => {
-          if (channelRef.current !== ch) return; // reconnected while this was verifying
-          // Decide after the await, against the refs as they are now (see decideStateUpdate).
-          const decision = decideStateUpdate(candidate, modeRef.current, lastStateTimestampRef.current);
-          if (!decision.accept) return;
-          if (decision.acceptedTimestamp !== null) lastStateTimestampRef.current = decision.acceptedTimestamp;
-          setGameState(decision.state);
-          if (decision.upgradeToV2) {
-            modeRef.current = 'v2';
-            markUpgradedToV2(localStorage);
-          }
-        })
-        .catch((e) => console.error('[Remote] Could not verify a state update:', e));
+      receiveStateUpdate(payload)
+        .catch((e) => console.error('[Remote] Could not verify a state update:', messageOf(e)));
     });
     
     ch.subscribe((status, err) => {
       if (err) {
-        console.error(err);
+        console.error('[Remote] Realtime subscribe failed:', err.message);
         setStatus('offline');
       } else if (status === 'SUBSCRIBED') {
         setStatus('connected');
@@ -108,7 +104,7 @@ export function useRemoteControl() {
         if (secretKey) {
           signInOrder(() => buildSyncRequests(modeRef.current, secretKey))
             .then((payloads) => Promise.all(payloads.map((payload) => sendBroadcast(ch, payload))))
-            .catch((e) => console.error('[Remote] Sync request failed:', e));
+            .catch((e) => console.error('[Remote] Sync request failed:', messageOf(e)));
         }
       } else {
         setStatus('offline');
@@ -127,7 +123,6 @@ export function useRemoteControl() {
     if (pairing) {
       secretKeyRef.current = pairing.secretKey;
       modeRef.current = pairing.mode;
-      lastStateTimestampRef.current = 0;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setConfig({ roomId: pairing.roomId, secretKey: pairing.secretKey });
       connectRealtime(pairing.roomId);
@@ -160,7 +155,7 @@ export function useRemoteControl() {
         showFeedback('Error! ❌');
       }
     } catch (e) {
-      console.error('Dispatch failed:', e);
+      console.error('Dispatch failed:', messageOf(e));
       showFeedback('Failed! ⚠️');
     } finally {
       if (action.type !== 'SNAKE_DIR') {

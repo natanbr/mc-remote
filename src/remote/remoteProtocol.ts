@@ -17,16 +17,25 @@ export type StateDecision =
 
 const REJECT: StateDecision = { accept: false };
 
+/**
+ * How far a signed state's timestamp may be from the phone's clock. Genuine states arrive in real
+ * time (the desktop broadcasts on change and answers SYNC_REQUEST) and the desktop already needs
+ * clocks within 60 s for actions. Without this bound the "strictly newer" rule lasts one page
+ * session: after a reload a signed state recorded days ago would be accepted.
+ */
+export const MAX_STATE_SKEW_MS = 120_000;
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
 /**
- * The async half: verify and parse, independent of the mode. The caller decides with
- * `decideStateUpdate` AFTER the await, against the mode and last timestamp as they are then —
- * two messages can finish verifying out of order, and the mode can flip in between.
+ * The async half: verify and parse. The caller decides with `decideStateUpdate` AFTER the
+ * await, against the mode and last timestamp as they are then — two messages can finish
+ * verifying out of order, and the mode can flip in between. `allowLegacy` only filters: with it
+ * false (v2 mode) an attacker-supplied `key` is never even compared.
  */
-export async function classifyStateUpdate(payload: unknown, secretKey: string): Promise<StateCandidate | null> {
+export async function classifyStateUpdate(payload: unknown, secretKey: string, allowLegacy: boolean): Promise<StateCandidate | null> {
   if (!isRecord(payload)) return null;
   if (payload.v === 2) {
     const content = await openRemoteMessage(secretKey, 'state-update', payload);
@@ -34,21 +43,28 @@ export async function classifyStateUpdate(payload: unknown, secretKey: string): 
     return { kind: 'signed', state: content.state, timestamp: content.timestamp };
   }
   // LEGACY (protocol v1): { key, state, timestamp }. Remove once the desktop v2 release is installed everywhere.
-  if (payload.key === secretKey && isRecord(payload.state)) return { kind: 'legacy', state: payload.state };
+  if (allowLegacy && payload.key === secretKey && isRecord(payload.state)) return { kind: 'legacy', state: payload.state };
   return null;
 }
 
 /**
- * Signed states must be strictly newer than the last accepted one (defeats replaying an old
- * signed state). A verified signed state in legacy mode proves the host speaks v2: upgrade.
- * Legacy states are accepted in legacy mode only, and do not move the timestamp (as in v1).
+ * Signed states must be strictly newer than the last accepted one and within MAX_STATE_SKEW_MS of
+ * `now` (defeats replaying an old signed state). A verified signed state in legacy mode proves
+ * the host speaks v2: upgrade. Legacy states are accepted in legacy mode only, and do not move
+ * the timestamp (as in v1).
  */
-export function decideStateUpdate(candidate: StateCandidate | null, mode: ProtocolMode, lastAcceptedTimestamp: number): StateDecision {
+export function decideStateUpdate(
+  candidate: StateCandidate | null,
+  mode: ProtocolMode,
+  lastAcceptedTimestamp: number,
+  now: number,
+): StateDecision {
   if (!candidate) return REJECT;
   if (candidate.kind === 'legacy') {
     return mode === 'legacy' ? { accept: true, state: candidate.state, acceptedTimestamp: null, upgradeToV2: false } : REJECT;
   }
   if (candidate.timestamp <= lastAcceptedTimestamp) return REJECT;
+  if (Math.abs(now - candidate.timestamp) > MAX_STATE_SKEW_MS) return REJECT;
   return { accept: true, state: candidate.state, acceptedTimestamp: candidate.timestamp, upgradeToV2: mode === 'legacy' };
 }
 
