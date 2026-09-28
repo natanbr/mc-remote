@@ -14,10 +14,13 @@ import type { BroadcastPayload } from '../types.ts';
 
 const KEY = 'AbCdEfGhIjKlMnOpQrSt';
 const STATE = { bankCount: 3 };
+const NOW = 1_700_000_000_000; // the phone's clock in these tests
+const SECOND = 1000;
+const DAY = 86_400 * SECOND;
 
-/** What the hook does with one incoming state-update: verify/classify, then decide against the refs. */
-async function receive(payload: unknown, mode: ProtocolMode, lastAcceptedTimestamp = 0) {
-  return decideStateUpdate(await classifyStateUpdate(payload, KEY), mode, lastAcceptedTimestamp);
+/** One incoming state-update: classify (legacy only in legacy mode), then decide. */
+async function receive(payload: unknown, mode: ProtocolMode, lastAcceptedTimestamp = 0, now = NOW) {
+  return decideStateUpdate(await classifyStateUpdate(payload, KEY, mode === 'legacy'), mode, lastAcceptedTimestamp, now);
 }
 
 const signedState = (timestamp: number, state: object = STATE) =>
@@ -38,28 +41,54 @@ test('legacy mode rejects a legacy payload with the wrong key or no state', asyn
 });
 
 test('legacy mode accepts a verified signed state and signals the upgrade to v2', async () => {
-  const decision = await receive(await signedState(1000), 'legacy');
-  assert.deepEqual(decision, { accept: true, state: STATE, acceptedTimestamp: 1000, upgradeToV2: true });
+  const decision = await receive(await signedState(NOW), 'legacy');
+  assert.deepEqual(decision, { accept: true, state: STATE, acceptedTimestamp: NOW, upgradeToV2: true });
 });
 
 test('v2 mode rejects a legacy { key, state } payload even with the right key', async () => {
-  assert.deepEqual(await receive({ key: KEY, state: STATE, timestamp: Date.now() }, 'v2'), { accept: false });
+  assert.deepEqual(await receive({ key: KEY, state: STATE, timestamp: NOW }, 'v2'), { accept: false });
+});
+
+test('with legacy not allowed, the attacker-supplied key of a legacy payload is never read', async () => {
+  let keyRead = false;
+  const payload = { state: STATE, get key() { keyRead = true; return KEY; } };
+  assert.equal(await classifyStateUpdate(payload, KEY, false), null);
+  assert.equal(keyRead, false, 'v2 mode must not evaluate payload.key at all');
+  assert.equal((await classifyStateUpdate(payload, KEY, true))?.kind, 'legacy');
+  assert.equal(keyRead, true);
 });
 
 test('v2 mode accepts a verified signed state newer than the last one, without an upgrade signal', async () => {
-  const decision = await receive(await signedState(2000), 'v2', 1999);
-  assert.deepEqual(decision, { accept: true, state: STATE, acceptedTimestamp: 2000, upgradeToV2: false });
+  const decision = await receive(await signedState(NOW), 'v2', NOW - 1);
+  assert.deepEqual(decision, { accept: true, state: STATE, acceptedTimestamp: NOW, upgradeToV2: false });
 });
 
 test('a signed state with timestamp <= the last accepted one is dropped (replay / out of order)', async () => {
   for (const mode of ['v2', 'legacy'] as const) {
-    assert.deepEqual(await receive(await signedState(2000), mode, 2000), { accept: false }, `${mode}: equal`);
-    assert.deepEqual(await receive(await signedState(1500), mode, 2000), { accept: false }, `${mode}: older`);
+    assert.deepEqual(await receive(await signedState(NOW), mode, NOW), { accept: false }, `${mode}: equal`);
+    assert.deepEqual(await receive(await signedState(NOW - 500), mode, NOW), { accept: false }, `${mode}: older`);
   }
 });
 
+test('a genuine signed state recorded 3 days ago is rejected even with nothing accepted yet (after a reload)', async () => {
+  const old = await signedState(NOW - 3 * DAY);
+  assert.deepEqual(await receive(old, 'v2', 0), { accept: false });
+  assert.deepEqual(await receive(old, 'legacy', 0), { accept: false }, 'a stale state must not upgrade the phone either');
+});
+
+test('a signed state up to 120 s old on the phone\'s clock is accepted', async () => {
+  assert.equal((await receive(await signedState(NOW - 119 * SECOND), 'v2', 0)).accept, true, '119 s old');
+  assert.equal((await receive(await signedState(NOW - 120 * SECOND), 'v2', 0)).accept, true, 'exactly 120 s old');
+  assert.equal((await receive(await signedState(NOW - 121 * SECOND), 'v2', 0)).accept, false, '121 s old');
+});
+
+test('a signed state more than 120 s in the future is rejected', async () => {
+  assert.deepEqual(await receive(await signedState(NOW + 121 * SECOND), 'v2', 0), { accept: false });
+  assert.equal((await receive(await signedState(NOW + 119 * SECOND), 'v2', 0)).accept, true, '119 s ahead is clock skew, accepted');
+});
+
 test('a signed state with a bad sig is rejected in both modes', async () => {
-  const envelope = await signedState(3000);
+  const envelope = await signedState(NOW);
   const forged = { ...envelope, body: envelope.body.replace('"bankCount":3', '"bankCount":99') };
   assert.deepEqual(await receive(forged, 'v2'), { accept: false });
   assert.deepEqual(await receive(forged, 'legacy'), { accept: false });
@@ -68,11 +97,11 @@ test('a signed state with a bad sig is rejected in both modes', async () => {
 
 test('a signed state-update needs a state object and a finite timestamp', async () => {
   for (const content of [
-    { timestamp: 1 },
-    { state: 'x', timestamp: 1 },
-    { state: [1], timestamp: 1 },
+    { timestamp: NOW },
+    { state: 'x', timestamp: NOW },
+    { state: [1], timestamp: NOW },
     { state: STATE },
-    { state: STATE, timestamp: '1' },
+    { state: STATE, timestamp: String(NOW) },
     { state: STATE, timestamp: null },
   ]) {
     const envelope = await sealRemoteMessage(KEY, 'state-update', content);
@@ -85,7 +114,7 @@ test('a signed state-update needs a state object and a finite timestamp', async 
 });
 
 test('a signed action replayed on the state-update event is rejected', async () => {
-  const action = await sealRemoteMessage(KEY, 'action', { state: STATE, timestamp: 4000 });
+  const action = await sealRemoteMessage(KEY, 'action', { state: STATE, timestamp: NOW });
   assert.deepEqual(await receive(action, 'v2'), { accept: false });
   assert.deepEqual(await receive(action, 'legacy'), { accept: false });
 });

@@ -22,6 +22,23 @@ test('WebCrypto is available in this runtime', () => {
   assert.equal(hasWebCrypto(), true);
 });
 
+// Without this check a legacy-mode phone on plain http would still send the key: building a
+// legacy payload needs no crypto. An insecure context has crypto.getRandomValues but no subtle.
+test('hasWebCrypto is false without crypto.subtle', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  assert.ok(original, 'Node defines globalThis.crypto');
+  try {
+    const insecure = { getRandomValues: <T extends ArrayBufferView>(array: T) => array };
+    Object.defineProperty(globalThis, 'crypto', { value: insecure, configurable: true });
+    assert.equal(hasWebCrypto(), false, 'insecure context: crypto without subtle');
+    Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+    assert.equal(hasWebCrypto(), false, 'no crypto at all');
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', original);
+  }
+  assert.equal(hasWebCrypto(), true, 'restored');
+});
+
 test('sign reproduces the shared action vector exactly', async () => {
   assert.equal(await signRemote(KEY, 'action', ACTION_BODY), ACTION_SIG);
 });
