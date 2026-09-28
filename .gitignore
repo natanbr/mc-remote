@@ -23,7 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables (never commit secrets)
-.env
-.env.*
+# Environment variables (never commit secrets); also catches copies like ".env copy" and "prod.env"
+.env*
+*.env
 !.env.example
