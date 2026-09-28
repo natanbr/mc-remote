@@ -185,9 +185,14 @@ test('an unverified message never triggers the clock-skew report', async () => {
 });
 
 test('a stale-channel or re-paired result never triggers the clock-skew report', async () => {
-  const h = harness({ mode: 'v2' });
-  const pending = h.receive(await signedState(NOW - 3 * DAY));
-  h.refs.current = false;
-  await pending;
-  assert.deepEqual(h.skews, []);
+  const stale = harness({ mode: 'v2' });
+  const pendingStale = stale.receive(await signedState(NOW - 3 * DAY));
+  stale.refs.current = false;
+  await pendingStale;
+  assert.deepEqual(stale.skews, [], 'stale channel');
+  const repaired = harness({ mode: 'v2' });
+  const pendingRepaired = repaired.receive(await signedState(NOW - 3 * DAY));
+  repaired.refs.secretKey = 'the-new-pairing-key';
+  await pendingRepaired;
+  assert.deepEqual(repaired.skews, [], 're-paired in this tab');
 });
