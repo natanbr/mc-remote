@@ -6,6 +6,8 @@ interface ResponsibilitiesSectionProps {
   gameTokens?: number;
   recycling?: { pointsEarned: number; pointsRequired: number };
   activity?: { pointsEarned: number; pointsRequired: number };
+  /** The desktop refuses responsibility points while the shield is broken. */
+  pointsLocked?: boolean;
   loadingActions: Set<string>;
   dispatchAction: (action: RemoteAction, actionId: string) => void;
 }
@@ -14,6 +16,7 @@ export function ResponsibilitiesSection({
   gameTokens, 
   recycling, 
   activity, 
+  pointsLocked = false,
   loadingActions, 
   dispatchAction 
 }: ResponsibilitiesSectionProps) {
@@ -33,6 +36,7 @@ export function ResponsibilitiesSection({
              icon={<span className="text-sm">➖</span>} 
              label="" 
              loading={loadingActions.has('resp-recycling-minus')}
+             disabled={pointsLocked}
              onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'recycling', amount: -1 }, 'resp-recycling-minus')} 
              bg="bg-emerald-50"
              border="border-emerald-200"
@@ -42,6 +46,7 @@ export function ResponsibilitiesSection({
              icon={<span className="text-sm">➕</span>} 
              label="" 
              loading={loadingActions.has('resp-recycling-plus')}
+             disabled={pointsLocked}
              onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'recycling', amount: 1 }, 'resp-recycling-plus')} 
              bg="bg-emerald-50"
              border="border-emerald-200"
@@ -61,6 +66,7 @@ export function ResponsibilitiesSection({
              icon={<span className="text-sm">➖</span>} 
              label="" 
              loading={loadingActions.has('resp-activity-minus')}
+             disabled={pointsLocked}
              onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'activity', amount: -1 }, 'resp-activity-minus')} 
              bg="bg-blue-50"
              border="border-blue-200"
@@ -70,6 +76,7 @@ export function ResponsibilitiesSection({
              icon={<span className="text-sm">➕</span>} 
              label="" 
              loading={loadingActions.has('resp-activity-plus')}
+             disabled={pointsLocked}
              onClick={() => dispatchAction({ type: 'ADD_RESPONSIBILITY_POINT', taskId: 'activity', amount: 1 }, 'resp-activity-plus')} 
              bg="bg-blue-50"
              border="border-blue-200"

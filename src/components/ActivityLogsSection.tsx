@@ -9,6 +9,7 @@ interface LogEntry {
   type: string;
   colorKey?: string;
   isRemote?: boolean;
+  source?: string;
 }
 
 interface ActivityLogsSectionProps {
@@ -86,7 +87,8 @@ export function ActivityLogsSection({ logs }: ActivityLogsSectionProps) {
                   </div>
                   <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
                     <span>{timeString}</span>
-                    {log.isRemote && (
+                    {/* The desktop's shield lock/unlock lines carry source only, no isRemote */}
+                    {(log.source === 'remote' || log.isRemote) && (
                       <span className="text-[10px]" title="Triggered from remote">📱</span>
                     )}
                   </div>
