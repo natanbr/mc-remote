@@ -12,6 +12,7 @@ export default function App() {
     actionFeedback, 
     loadingActions, 
     gameState,
+    connectionHint,
     dispatchAction, 
     reconnect,
     isConfigured 
@@ -42,6 +43,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-bg pb-20">
       <Header status={status} onReconnect={reconnect} onOpenSnake={() => setView('snake')} />
+      <ConnectionHintBanner message={connectionHint} />
 
       <MainController 
         gameState={gameState} 
@@ -87,6 +89,18 @@ function Header({ status, onReconnect, onOpenSnake }: { status: string; onReconn
         )}
       </div>
     </header>
+  );
+}
+
+function ConnectionHintBanner({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div className="px-5 pt-5 max-w-5xl mx-auto">
+      <div role="status" className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-bold">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" />
+        <span>{message}</span>
+      </div>
+    </div>
   );
 }
 

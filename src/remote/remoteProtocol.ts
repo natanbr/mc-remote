@@ -4,16 +4,18 @@ import { isRecord, openRemoteMessage, sealRemoteMessage } from './remoteAuth.ts'
 
 /**
  * Protocol rules that depend on the mode (see pairing.ts): what to send, and which incoming
- * state-updates to accept. Pure apart from WebCrypto, so the hook stays thin and this is testable.
+ * state-updates to accept. The mode comes only from the pairing link: legacy mode is the v1
+ * phone exactly, v2 mode is signed only. Pure apart from WebCrypto, so this is testable.
  */
 
 export type StateCandidate =
   | { kind: 'signed'; state: Record<string, unknown>; timestamp: number }
   | { kind: 'legacy'; state: Record<string, unknown> };
 
+/** `clockSkewMs` (now - timestamp) is set only when a verified, newer state was refused for skew alone. */
 export type StateDecision =
-  | { accept: false }
-  | { accept: true; state: Record<string, unknown>; acceptedTimestamp: number | null; upgradeToV2: boolean };
+  | { accept: false; clockSkewMs?: number }
+  | { accept: true; state: Record<string, unknown>; acceptedTimestamp: number | null };
 
 const REJECT: StateDecision = { accept: false };
 
@@ -30,28 +32,28 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 /**
- * The async half: verify and parse. The caller decides with `decideStateUpdate` AFTER the
- * await, against the mode and last timestamp as they are then — two messages can finish
- * verifying out of order, and the mode can flip in between. `allowLegacy` only filters: with it
- * false (v2 mode) an attacker-supplied `key` is never even compared.
+ * The async half: verify and parse, for one mode only. In v2 mode an attacker-supplied `key` is
+ * never even compared; in legacy mode a signed state is not verified (the key is public there).
+ * The caller decides with `decideStateUpdate` AFTER the await, against the mode and last
+ * timestamp as they are then: two messages can finish verifying out of order.
  */
-export async function classifyStateUpdate(payload: unknown, secretKey: string, allowLegacy: boolean): Promise<StateCandidate | null> {
+export async function classifyStateUpdate(payload: unknown, secretKey: string, mode: ProtocolMode): Promise<StateCandidate | null> {
   if (!isRecord(payload)) return null;
-  if (payload.v === 2) {
+  if (mode === 'v2') {
     const content = await openRemoteMessage(secretKey, 'state-update', payload);
     if (!content || !isRecord(content.state) || !isFiniteNumber(content.timestamp)) return null;
     return { kind: 'signed', state: content.state, timestamp: content.timestamp };
   }
   // LEGACY (protocol v1): { key, state, timestamp }. Remove once the desktop v2 release is installed everywhere.
-  if (allowLegacy && payload.key === secretKey && isRecord(payload.state)) return { kind: 'legacy', state: payload.state };
+  if (payload.key === secretKey && isRecord(payload.state)) return { kind: 'legacy', state: payload.state };
   return null;
 }
 
 /**
- * Signed states must be strictly newer than the last accepted one and within MAX_STATE_SKEW_MS of
- * `now` (defeats replaying an old signed state). A verified signed state in legacy mode proves
- * the host speaks v2: upgrade. Legacy states are accepted in legacy mode only, and do not move
- * the timestamp (as in v1).
+ * Each kind is accepted in its own mode only. Signed states must be strictly newer than the last
+ * accepted one and within MAX_STATE_SKEW_MS of `now` (defeats replaying an old signed state);
+ * the order of checks is what makes `clockSkewMs` mean "refused only for skew". Legacy states
+ * do not move the timestamp (as in v1).
  */
 export function decideStateUpdate(
   candidate: StateCandidate | null,
@@ -61,11 +63,12 @@ export function decideStateUpdate(
 ): StateDecision {
   if (!candidate) return REJECT;
   if (candidate.kind === 'legacy') {
-    return mode === 'legacy' ? { accept: true, state: candidate.state, acceptedTimestamp: null, upgradeToV2: false } : REJECT;
+    return mode === 'legacy' ? { accept: true, state: candidate.state, acceptedTimestamp: null } : REJECT;
   }
-  if (candidate.timestamp <= lastAcceptedTimestamp) return REJECT;
-  if (Math.abs(now - candidate.timestamp) > MAX_STATE_SKEW_MS) return REJECT;
-  return { accept: true, state: candidate.state, acceptedTimestamp: candidate.timestamp, upgradeToV2: mode === 'legacy' };
+  if (mode !== 'v2' || candidate.timestamp <= lastAcceptedTimestamp) return REJECT;
+  const clockSkewMs = now - candidate.timestamp;
+  if (Math.abs(clockSkewMs) > MAX_STATE_SKEW_MS) return { accept: false, clockSkewMs };
+  return { accept: true, state: candidate.state, acceptedTimestamp: candidate.timestamp };
 }
 
 export function newActionContent(action: RemoteAction | SyncRequestAction, now = Date.now(), msgIdPrefix = ''): ActionContent {
@@ -81,14 +84,10 @@ export async function buildActionPayload(mode: ProtocolMode, secretKey: string, 
   return mode === 'v2' ? sealRemoteMessage(secretKey, 'action', content) : legacyActionPayload(secretKey, content);
 }
 
-/**
- * Sent on every subscribe. Legacy mode sends the signed request first, then the unsigned one:
- * a v1 desktop answers only the unsigned one, a v2 desktop rejects it and answers the signed one.
- */
+/** Sent on every subscribe: one request, in the pairing's own protocol. */
 export async function buildSyncRequests(mode: ProtocolMode, secretKey: string, now = Date.now()): Promise<BroadcastPayload[]> {
-  const syncContent = () => newActionContent({ type: 'SYNC_REQUEST' }, now, 'sync-');
-  const signed = await sealRemoteMessage(secretKey, 'action', syncContent());
-  return mode === 'v2' ? [signed] : [signed, legacyActionPayload(secretKey, syncContent())];
+  const content = newActionContent({ type: 'SYNC_REQUEST' }, now, 'sync-');
+  return [await buildActionPayload(mode, secretKey, content)];
 }
 
 /**
@@ -100,8 +99,9 @@ export async function buildSyncRequests(mode: ProtocolMode, secretKey: string, n
 export function createSerialQueue(): <T>(task: () => T | Promise<T>) => Promise<T> {
   let tail: Promise<unknown> = Promise.resolve();
   return <T>(task: () => T | Promise<T>): Promise<T> => {
-    const result = tail.then(task);
-    tail = result.catch(() => undefined);
+    // No argument for the task, and the tail keeps no result (a legacy payload holds the key).
+    const result = tail.then(() => task());
+    tail = result.then(() => undefined, () => undefined);
     return result;
   };
 }
