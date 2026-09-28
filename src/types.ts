@@ -40,12 +40,38 @@ export interface RemoteAction {
   [key: string]: unknown; // Payload fields like amount, taskId, etc.
 }
 
-export interface BroadcastPayload {
-  key: string;
+/** Sent on subscribe so the host broadcasts its current state. Never dispatched from the UI. */
+export interface SyncRequestAction {
+  type: 'SYNC_REQUEST';
+}
+
+/** What an `action` message carries: the signed body in v2, the fields beside `key` in legacy. */
+export interface ActionContent {
+  action: RemoteAction | SyncRequestAction;
   msgId: string;
   timestamp: number;
-  action: RemoteAction;
 }
+
+/**
+ * Protocol v2 wire payload, both events and both directions. `body` is the JSON string that
+ * `sig` covers (HMAC-SHA256 keyed by the pairing key); the key itself is never sent.
+ */
+export interface SignedEnvelope {
+  v: 2;
+  body: string;
+  sig: string;
+}
+
+/**
+ * LEGACY protocol v1 action payload: carries the pairing key in plain text.
+ * Remove once the desktop v2 release is installed everywhere.
+ */
+export interface LegacyActionPayload extends ActionContent {
+  key: string;
+}
+
+/** Payload of a broadcast `action` event. */
+export type BroadcastPayload = SignedEnvelope | LegacyActionPayload;
 
 export interface RemoteMission {
   phase: 'morning' | 'evening';
