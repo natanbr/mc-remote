@@ -3,11 +3,16 @@
  * Supabase acknowledges every send itself, so "Live" and "Sent!" cannot tell that no desktop is
  * listening (after the desktop renews its pairing, an old pairing's room is empty).
  */
+import { MAX_STATE_SKEW_MS } from './remoteProtocol.ts';
+
 export type ConnectionHint = 'not-answering' | 'clock-skew';
+
+/** Read from the bound decideStateUpdate applies, so the texts cannot drift from it. */
+const SKEW_BOUND_SECONDS = MAX_STATE_SKEW_MS / 1000;
 
 export const HINT_TEXT: Record<ConnectionHint, string> = {
   'not-answering': 'Mission Control is not answering. If it was updated, scan its QR code again.',
-  'clock-skew': "This phone's clock and the desktop's clock differ by more than 2 minutes.",
+  'clock-skew': `This phone's clock and the desktop's clock differ by more than ${SKEW_BOUND_SECONDS} seconds.`,
 };
 
 export const ANSWER_TIMEOUT_MS = 5000;
@@ -62,5 +67,5 @@ export function createHintTracker<Handle>(onHint: (hint: ConnectionHint | null) 
 export function clockSkewWarning(diffMs: number): string {
   const seconds = Math.round(Math.abs(diffMs) / 1000);
   const direction = diffMs < 0 ? 'ahead of' : 'behind';
-  return `[Remote] Refused a verified state: the desktop's clock is ${seconds} s ${direction} this phone's (more than 2 minutes).`;
+  return `[Remote] Refused a verified state: the desktop's clock is ${seconds} s ${direction} this phone's (more than ${SKEW_BOUND_SECONDS} s).`;
 }

@@ -89,11 +89,12 @@ test('a clock-skew refusal means the desktop answered: it replaces the timer wit
 
 test('the hint texts a parent sees', () => {
   assert.equal(HINT_TEXT['not-answering'], 'Mission Control is not answering. If it was updated, scan its QR code again.');
-  assert.equal(HINT_TEXT['clock-skew'], "This phone's clock and the desktop's clock differ by more than 2 minutes.");
+  assert.equal(HINT_TEXT['clock-skew'], "This phone's clock and the desktop's clock differ by more than 55 seconds.");
 });
 
 test('the clock-skew console warning gives the rounded difference in seconds and the direction', () => {
   assert.match(clockSkewWarning(-150_400), /150 s/);
+  assert.match(clockSkewWarning(-150_400), /\(more than 55 s\)/, 'the bound the phone applies');
   assert.match(clockSkewWarning(-150_400), /ahead/);
   assert.match(clockSkewWarning(3 * 86_400_000 + 400), /259200 s/);
   assert.match(clockSkewWarning(3 * 86_400_000), /behind/);
