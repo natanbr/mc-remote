@@ -7,6 +7,7 @@ import {
   classifyStateUpdate,
   createSerialQueue,
   decideStateUpdate,
+  MAX_STATE_SKEW_MS,
   newActionContent,
 } from './remoteProtocol.ts';
 import type { ProtocolMode } from './pairing.ts';
@@ -79,15 +80,30 @@ test('a genuine signed state recorded 3 days ago is rejected even with nothing a
   assert.deepEqual(await receive(old, 'v2', 0), { accept: false, clockSkewMs: 3 * DAY });
 });
 
-test('a signed state up to 120 s old on the phone\'s clock is accepted', async () => {
-  assert.equal((await receive(await signedState(NOW - 119 * SECOND), 'v2', 0)).accept, true, '119 s old');
-  assert.equal((await receive(await signedState(NOW - 120 * SECOND), 'v2', 0)).accept, true, 'exactly 120 s old');
-  assert.deepEqual(await receive(await signedState(NOW - 121 * SECOND), 'v2', 0), { accept: false, clockSkewMs: 121 * SECOND }, '121 s old');
+test('the state bound is 55 s: 5 s inside the desktop\'s 60 s action window (MAX_ACTION_AGE_MS)', () => {
+  // At 120 s the phone showed fresh states while the desktop dropped every press (60-120 s apart).
+  assert.equal(MAX_STATE_SKEW_MS, 55 * SECOND);
 });
 
-test('a signed state more than 120 s in the future is rejected', async () => {
-  assert.deepEqual(await receive(await signedState(NOW + 121 * SECOND), 'v2', 0), { accept: false, clockSkewMs: -121 * SECOND });
-  assert.equal((await receive(await signedState(NOW + 119 * SECOND), 'v2', 0)).accept, true, '119 s ahead is clock skew, accepted');
+test('a signed state up to 55 s old on the phone\'s clock is accepted', async () => {
+  assert.equal((await receive(await signedState(NOW - 54 * SECOND), 'v2', 0)).accept, true, '54 s old');
+  assert.equal((await receive(await signedState(NOW - 55 * SECOND), 'v2', 0)).accept, true, 'exactly 55 s old');
+  assert.deepEqual(await receive(await signedState(NOW - 55 * SECOND - 1), 'v2', 0), { accept: false, clockSkewMs: 55 * SECOND + 1 }, '1 ms over');
+  assert.deepEqual(await receive(await signedState(NOW - 56 * SECOND), 'v2', 0), { accept: false, clockSkewMs: 56 * SECOND }, '56 s old');
+});
+
+test('a signed state more than 55 s in the future is rejected', async () => {
+  assert.equal((await receive(await signedState(NOW + 54 * SECOND), 'v2', 0)).accept, true, '54 s ahead is clock skew, accepted');
+  assert.equal((await receive(await signedState(NOW + 55 * SECOND), 'v2', 0)).accept, true, 'exactly 55 s ahead');
+  assert.deepEqual(await receive(await signedState(NOW + 55 * SECOND + 1), 'v2', 0), { accept: false, clockSkewMs: -(55 * SECOND + 1) }, '1 ms over');
+  assert.deepEqual(await receive(await signedState(NOW + 56 * SECOND), 'v2', 0), { accept: false, clockSkewMs: -56 * SECOND }, '56 s ahead');
+});
+
+test('a state 60-120 s off the phone\'s clock is refused as clock skew (the desktop refuses actions there)', async () => {
+  for (const seconds of [61, 90, 120]) {
+    assert.deepEqual(await receive(await signedState(NOW - seconds * SECOND), 'v2', 0), { accept: false, clockSkewMs: seconds * SECOND }, `${seconds} s old`);
+    assert.deepEqual(await receive(await signedState(NOW + seconds * SECOND), 'v2', 0), { accept: false, clockSkewMs: -seconds * SECOND }, `${seconds} s ahead`);
+  }
 });
 
 test('a signed state with a bad sig is rejected in both modes', async () => {

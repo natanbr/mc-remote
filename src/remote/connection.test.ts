@@ -200,6 +200,35 @@ test('an accepted state clears the hint and stops the wait', async () => {
   assert.deepEqual(h.hints.slice(-1), [null]);
 });
 
+// The desktop refuses every action more than 60 s off its clock (MAX_ACTION_AGE_MS). With clocks
+// 60-120 s apart the phone used to show this state as live while every press was dropped.
+test('clocks 60-120 s apart: the state is refused and the clock hint shows, not a live view', async () => {
+  for (const offset of [61_000, -61_000, 90_000, -90_000, 119_000, -119_000]) {
+    const h = harness();
+    h.connection.applyPairing(PAIR_A);
+    const [a] = h.channels;
+    a.status('SUBSCRIBED');
+    await a.deliver(await signedState(PAIR_A, NOW + offset));
+    assert.ok(!h.gameStates.some((state) => state !== null), `${offset} ms: no state shown`);
+    assert.deepEqual(h.hints.slice(-1), ['clock-skew'], `${offset} ms: the clock hint`);
+    assert.equal(h.timers.size, 0, `${offset} ms: the desktop answered, no "not answering" wait`);
+    assert.equal(h.logs.length, 1, `${offset} ms: one console warning`);
+  }
+});
+
+test('clocks up to 55 s apart: the state is shown and no hint, as before', async () => {
+  for (const offset of [0, 30_000, -30_000, 54_000, -54_000, 55_000, -55_000]) {
+    const h = harness();
+    h.connection.applyPairing(PAIR_A);
+    const [a] = h.channels;
+    a.status('SUBSCRIBED');
+    await a.deliver(await signedState(PAIR_A, NOW + offset));
+    assert.deepEqual(h.gameStates.slice(-1), [STATE], `${offset} ms: shown`);
+    assert.deepEqual(h.hints.slice(-1), [null], `${offset} ms: no hint`);
+    assert.deepEqual(h.logs, [], `${offset} ms: no warning`);
+  }
+});
+
 test('Reconnect clears a hint that is showing', () => {
   const h = harness();
   h.connection.applyPairing(PAIR_A);
@@ -250,7 +279,7 @@ test('a rejoin resets the replay window (a desktop clock set back does not freez
   h.connection.applyPairing(PAIR_A);
   const [a] = h.channels;
   a.status('SUBSCRIBED');
-  await a.deliver(await signedState(PAIR_A, NOW + 60_000));
+  await a.deliver(await signedState(PAIR_A, NOW + 30_000)); // inside the 55 s clock bound
   await a.deliver(await signedState(PAIR_A, NOW));
   assert.equal(h.gameStates.filter((state) => state !== null).length, 1);
   a.status('SUBSCRIBED');

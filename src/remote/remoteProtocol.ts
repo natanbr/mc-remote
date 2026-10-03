@@ -21,11 +21,17 @@ const REJECT: StateDecision = { accept: false };
 
 /**
  * How far a signed state's timestamp may be from the phone's clock. Genuine states arrive in real
- * time (the desktop broadcasts on change and answers SYNC_REQUEST) and the desktop already needs
- * clocks within 60 s for actions. Without this bound the "strictly newer" rule lasts one page
- * session: after a reload a signed state recorded days ago would be accepted.
+ * time (the desktop broadcasts on change and answers SYNC_REQUEST). Without this bound the
+ * "strictly newer" rule lasts one page session: after a reload a signed state recorded days ago
+ * would be accepted.
+ *
+ * Mirrors the desktop's MAX_ACTION_AGE_MS (60 s, gcal-simplified electron/remote-bridge.ts), which
+ * silently drops any action more than 60 s off its clock, and must stay at or below it: a state
+ * accepted here shows the phone as live, so its presses must be accepted there. The phone sees the
+ * clock difference less the state's network delay, the desktop sees it plus the action's delay;
+ * the 5 s margin covers both hops.
  */
-export const MAX_STATE_SKEW_MS = 120_000;
+export const MAX_STATE_SKEW_MS = 55_000;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
