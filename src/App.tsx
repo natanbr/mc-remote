@@ -47,6 +47,7 @@ export default function App() {
 
       <MainController 
         gameState={gameState} 
+        connected={status === 'connected'}
         loadingActions={loadingActions} 
         dispatchAction={dispatchAction} 
       />

@@ -1,4 +1,18 @@
-# React + TypeScript + Vite
+# Mission Control Remote
+
+## Mission sessions
+
+Morning and evening missions still start automatically at their scheduled times. Manual starts,
+retries, and full timer restarts belong to this paired phone controller; the desktop has no manual
+start or retry buttons. There is no daily limit: after a mission ends, use **Start another session**
+to run it again, including after a failure. Only one mission can run at a time.
+
+While a mission is running, **Reset tasks** clears its checklist without adding time. **Restart
+session** asks for confirmation, then starts a fresh checklist and timer. Earlier misses continue
+to count. Starting and restarting require a connection and received desktop state, and wait while
+another session command is being sent. Scheduled times are unchanged by manual sessions.
+
+## Development
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
