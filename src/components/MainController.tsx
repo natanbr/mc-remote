@@ -53,11 +53,12 @@ interface RemoteGameState {
 
 interface MainControllerProps {
   gameState: Record<string, unknown> | null;
+  connected: boolean;
   loadingActions: Set<string>;
   dispatchAction: (action: RemoteAction, actionId: string) => void;
 }
 
-export function MainController({ gameState, loadingActions, dispatchAction }: MainControllerProps) {
+export function MainController({ gameState, connected, loadingActions, dispatchAction }: MainControllerProps) {
   const state = gameState as RemoteGameState | null;
   const recycling = state?.responsibilities?.find((r) => r.id === 'recycling');
   const activity = state?.responsibilities?.find((r) => r.id === 'activity');
@@ -142,6 +143,7 @@ export function MainController({ gameState, loadingActions, dispatchAction }: Ma
 
         {/* 2. MISSIONS */}
         <MissionsSection 
+          connected={connected && state !== null}
           activeMission={state?.activeMission}
           missionStartedAt={state?.missionStartedAt}
           missionDurationMins={state?.missionDurationMins}
